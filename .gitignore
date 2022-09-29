@@ -1,3 +1,71 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+
+# Executables
+**/bin/
+**/build/
+**/out/
+**/out-release/
+**/out-release-exe/
+**/out-debug/
+**/buildLinux/
+**/cmake-build-debug/
+**/cmake-build-release/
+
+# Source Code
+*.ilk
+*.pdb
+*.suo
+*.db
+*.opendb
+
+#custom
+*.ipch
+*.dtbcache
+*.lock
+*.ide*
+
+# Build helpers and results:
+**/obj/
+
+# Visual Studio
+**/.vs
+
+# CLion
+**/.idea
+
+# Clangd
+**/.cache
+
+# Emacs
+**/.dir-locals.el
+
+# CMake
+**/CMakeSettings.json
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
@@ -9,3 +77,4 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+
