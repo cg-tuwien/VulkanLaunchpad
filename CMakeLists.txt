@@ -17,10 +17,10 @@ endif()
 #================================#
 # Vulkan Launchpad Project       #
 #================================#
+
 project(VulkanLaunchpad VERSION 0.1.0 LANGUAGES CXX)
 
 set(VKL_EXTERNAL_FOLDER "Dependencies")
-set(VKL_EXAMPLE_FOLDER "Examples")
 
 set(VKL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(VKL_EXTERNAL_DIR "${VKL_SOURCE_DIR}/external")
@@ -46,6 +46,12 @@ if(WIN32)
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
 elseif(APPLE)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wwrite-strings -x objective-c++")
+	if(USE_AVX)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+	endif()
+	if(USE_AVX2)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+	endif()
 elseif(UNIX)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wwrite-strings")
 	if(USE_AVX)
@@ -61,7 +67,7 @@ check_ipo_supported(RESULT result OUTPUT output)
 if(result)
 	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 else()
-  message("IPO is not supported: ${output}")
+	message("IPO is not supported: ${output}")
 endif()
 
 #================================#
@@ -98,24 +104,47 @@ source_group("Source Files" FILES ${Vkl_Source_Files})
 add_library(${PROJECT_NAME} STATIC ${Vkl_Header_Files} ${Vkl_Source_Files})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
-  PUBLIC Vulkan::Vulkan Vulkan::Headers glm::glm
-  PUBLIC glfw
-  PRIVATE glslang MachineIndependent GenericCodeGen OSDependent SPIRV SPVRemapper
+	PUBLIC Vulkan::Vulkan glm::glm glfw
+	PRIVATE glslang
 )
 target_include_directories(${PROJECT_NAME} 
-  PUBLIC "${VKL_EXTERNAL_DIR}/include"
-  PUBLIC "${VKL_SOURCE_DIR}"
+	INTERFACE "${VKL_SOURCE_DIR}"
+	PUBLIC "${VKL_EXTERNAL_DIR}/include"
 )
+add_dependencies(${PROJECT_NAME} glfw glslang)
 
 if(BUILD_TEMPLATE)
-  set(TEMPLATE_TARGET "${PROJECT_NAME}Template")
-  add_executable(${TEMPLATE_TARGET} "${VKL_SOURCE_DIR}/template/template.cpp")
-  target_link_libraries(${TEMPLATE_TARGET} ${PROJECT_NAME})
+	set(TEMPLATE_TARGET "${PROJECT_NAME}Template")
+	add_executable(${TEMPLATE_TARGET} "${VKL_SOURCE_DIR}/template/template.cpp")
+	target_link_libraries(${TEMPLATE_TARGET} ${PROJECT_NAME})
 endif()
 
-#================================#
-# Unset unneeded cache variables #
-#================================#
+#==================================#
+# Unset not needed cache variables #
+#==================================#
+
+unset(ENABLE_EXCEPTIONS CACHE)
+unset(ENABLE_GLSLANG_JS CACHE)
+unset(ENABLE_HLSL CACHE)
+unset(ENABLE_OPT CACHE)
+unset(ENABLE_RTTI CACHE)
+unset(ENABLE_SPVREMAPPER CACHE)
+unset(SKIP_GLSLANG_INSTALL CACHE)
+
+unset(GLFW_USE_HYBRID_HPG CACHE)
+unset(GLFW_VULKAN_STATIC CACHE)
+
+unset(LLVM_USE_CRT_DEBUG CACHE)
+unset(LLVM_USE_CRT_MINSIZEREL CACHE)
+unset(LLVM_USE_CRT_RELEASE CACHE)
+unset(LLVM_USE_CRT_RELWITHDEBINFO CACHE)
+
+unset(BUILD_EXTERNAL CACHE)
+unset(BUILD_SHARED_LIBS CACHE)
+unset(BUILD_TEMPLATE CACHE)
+unset(USE_CCACHE CACHE)
+unset(USE_MSVC_RUNTIME_LIBRARY_DLL CACHE)
+unset(OVERRIDE_MSVCCRT CACHE)
 
 # unset(CMAKE_BUILD_TYPE CACHE)
 # unset(CMAKE_CONFIGURATION_TYPES CACHE)
