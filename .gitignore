@@ -79,3 +79,5 @@ CTestTestfile.cmake
 _deps
 _project
 
+# macOS
+.DS_Store
