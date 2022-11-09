@@ -25,6 +25,7 @@ set(VKL_EXAMPLE_FOLDER "Examples")
 set(VKL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(VKL_EXTERNAL_DIR "${VKL_SOURCE_DIR}/external")
 
+option(BUILD_TEMPLATE "Build VKL Template" ON)
 option(USE_AVX "Activate AVX instructions" ON)
 option(USE_AVX2 "Activate AVX2 instructions" ON)
 
@@ -93,10 +94,19 @@ add_library(${PROJECT_NAME} STATIC ${Vkl_Header_Files} ${Vkl_Source_Files})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
   PUBLIC Vulkan::Vulkan Vulkan::Headers glm::glm
-  PRIVATE glfw
+  PUBLIC glfw
   PRIVATE glslang MachineIndependent GenericCodeGen OSDependent SPIRV SPVRemapper
 )
-target_include_directories(${PROJECT_NAME} PUBLIC "${VKL_EXTERNAL_DIR}/include")
+target_include_directories(${PROJECT_NAME} 
+  PUBLIC "${VKL_EXTERNAL_DIR}/include"
+  PUBLIC "${VKL_SOURCE_DIR}"
+)
+
+if(BUILD_TEMPLATE)
+  set(TEMPLATE_TARGET "${PROJECT_NAME}Template")
+  add_executable(${TEMPLATE_TARGET} "${VKL_SOURCE_DIR}/template/template.cpp")
+  target_link_libraries(${TEMPLATE_TARGET} ${PROJECT_NAME})
+endif()
 
 #================================#
 # Unset unneeded cache variables #
