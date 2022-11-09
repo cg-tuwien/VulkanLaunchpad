@@ -73,6 +73,7 @@ set(ENABLE_GLSLANG_BINARIES OFF)
 set(ENABLE_HLSL OFF)
 set(ENABLE_CTEST OFF)
 set(ENABLE_GLSLANG_INSTALL OFF)
+set(ENABLE_PCH OFF)
 add_subdirectory("${VKL_EXTERNAL_DIR}/glslang" EXCLUDE_FROM_ALL)
 set(GLFW_BUILD_EXAMPLES OFF)
 set(GLFW_BUILD_TESTS OFF)
@@ -83,7 +84,7 @@ add_subdirectory("${VKL_EXTERNAL_DIR}/glm" EXCLUDE_FROM_ALL)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_target_properties(glslang MachineIndependent GenericCodeGen OSDependent SPIRV SPVRemapper OGLCompiler PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glslang")
-set_target_properties(glfw PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glfw")
+set_target_properties(glfw update_mappings PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glfw")
 
 #================================#
 # Vulkan Launchpad Target        #
