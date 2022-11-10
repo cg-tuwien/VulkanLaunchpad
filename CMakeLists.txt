@@ -105,13 +105,13 @@ add_library(${PROJECT_NAME} STATIC ${Vkl_Header_Files} ${Vkl_Source_Files})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC Vulkan::Vulkan glm::glm glfw
-	PRIVATE glslang
+	PRIVATE glslang MachineIndependent GenericCodeGen OSDependent SPIRV SPVRemapper
 )
 target_include_directories(${PROJECT_NAME} 
 	INTERFACE "${VKL_SOURCE_DIR}"
 	PUBLIC "${VKL_EXTERNAL_DIR}/include"
 )
-add_dependencies(${PROJECT_NAME} glfw glslang)
+add_dependencies(${PROJECT_NAME} glfw glslang MachineIndependent GenericCodeGen OSDependent SPIRV SPVRemapper)
 
 if(BUILD_TEMPLATE)
 	set(TEMPLATE_TARGET "${PROJECT_NAME}Template")
