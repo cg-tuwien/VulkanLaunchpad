@@ -1,19 +1,5 @@
 cmake_minimum_required(VERSION 3.21.0)
 
-# Disable insource build
-if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-	message(FATAL_ERROR
-		"CMake generation for this project is not allowed within the source directory!"
-		"\n Remove the CMakeCache.txt file and try again from another folder, e.g.:"
-		"\n "
-		"\n rm CMakeCache.txt"
-		"\n cd .."
-		"\n mkdir cmake-make"
-		"\n cd cmake-make"
-		"\n cmake ../project"
-	)
-endif()
-
 #================================#
 # Vulkan Launchpad Project       #
 #================================#
@@ -25,7 +11,6 @@ set(VKL_EXTERNAL_FOLDER "Dependencies")
 set(VKL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(VKL_EXTERNAL_DIR "${VKL_SOURCE_DIR}/external")
 
-option(BUILD_TEMPLATE "Build VKL Template" ON)
 option(USE_AVX "Activate AVX instructions" ON)
 option(USE_AVX2 "Activate AVX2 instructions" ON)
 
@@ -112,12 +97,6 @@ target_include_directories(${PROJECT_NAME}
 	PUBLIC "${VKL_EXTERNAL_DIR}/include"
 )
 add_dependencies(${PROJECT_NAME} glfw glslang MachineIndependent GenericCodeGen OSDependent SPIRV SPVRemapper)
-
-if(BUILD_TEMPLATE)
-	set(TEMPLATE_TARGET "${PROJECT_NAME}Template")
-	add_executable(${TEMPLATE_TARGET} "${VKL_SOURCE_DIR}/template/template.cpp")
-	target_link_libraries(${TEMPLATE_TARGET} ${PROJECT_NAME})
-endif()
 
 #==================================#
 # Unset not needed cache variables #
