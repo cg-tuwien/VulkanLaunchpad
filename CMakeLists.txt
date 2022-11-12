@@ -30,6 +30,9 @@ set(ENABLE_HLSL OFF)
 set(ENABLE_CTEST OFF)
 set(ENABLE_GLSLANG_INSTALL OFF)
 set(ENABLE_PCH OFF)
+set(ENABLE_OPT OFF)
+set(ENABLE_SPVREMAPPER OFF)
+set(BUILD_EXTERNAL OFF)
 add_subdirectory("${VKL_EXTERNAL_DIR}/glslang" EXCLUDE_FROM_ALL)
 set(GLFW_BUILD_EXAMPLES OFF)
 set(GLFW_BUILD_TESTS OFF)
@@ -39,7 +42,7 @@ add_subdirectory("${VKL_EXTERNAL_DIR}/glfw" EXCLUDE_FROM_ALL)
 add_subdirectory("${VKL_EXTERNAL_DIR}/glm" EXCLUDE_FROM_ALL)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set_target_properties(glslang MachineIndependent GenericCodeGen OSDependent SPIRV SPVRemapper OGLCompiler PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glslang")
+set_target_properties(glslang MachineIndependent GenericCodeGen OSDependent SPIRV OGLCompiler PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glslang")
 set_target_properties(glfw update_mappings PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glfw")
 
 #================================#
@@ -55,13 +58,13 @@ add_library(${PROJECT_NAME} STATIC ${VKL_HEADER_FILES} ${VKL_SOURCE_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC Vulkan::Vulkan glm::glm glfw
-	PRIVATE glslang MachineIndependent GenericCodeGen OSDependent SPIRV SPVRemapper
+	PRIVATE glslang MachineIndependent GenericCodeGen OSDependent SPIRV
 )
 target_include_directories(${PROJECT_NAME} 
 	INTERFACE "${VKL_SOURCE_DIR}"
 	PUBLIC "${VKL_EXTERNAL_DIR}/include"
 )
-add_dependencies(${PROJECT_NAME} glfw glslang MachineIndependent GenericCodeGen OSDependent SPIRV SPVRemapper)
+add_dependencies(${PROJECT_NAME} glfw glslang MachineIndependent GenericCodeGen OSDependent SPIRV)
 
 #==================================#
 # Unset not needed cache variables #
