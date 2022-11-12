@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21.0)
+cmake_minimum_required(VERSION 3.14)
 
 #================================#
 # Vulkan Launchpad Project       #
@@ -7,12 +7,8 @@ cmake_minimum_required(VERSION 3.21.0)
 project(VulkanLaunchpad VERSION 0.1.0 LANGUAGES CXX)
 
 set(VKL_EXTERNAL_FOLDER "Dependencies")
-
 set(VKL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(VKL_EXTERNAL_DIR "${VKL_SOURCE_DIR}/external")
-
-option(USE_AVX "Activate AVX instructions" ON)
-option(USE_AVX2 "Activate AVX2 instructions" ON)
 
 #================================#
 # Vulkan Launchpad Compiler      #
@@ -21,38 +17,7 @@ option(USE_AVX2 "Activate AVX2 instructions" ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 if(WIN32)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHc /MP /Qpar")
-	if(USE_AVX)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX")
-	endif()
-	if(USE_AVX2)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
-	endif()
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
-elseif(APPLE)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wwrite-strings -x objective-c++")
-	if(USE_AVX)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
-	endif()
-	if(USE_AVX2)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-	endif()
-elseif(UNIX)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wwrite-strings")
-	if(USE_AVX)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
-	endif()
-	if(USE_AVX2)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-	endif()
-endif()
-
-include(CheckIPOSupported)
-check_ipo_supported(RESULT result OUTPUT output)
-if(result)
-	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-else()
-	message("IPO is not supported: ${output}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /Qpar")
 endif()
 
 #================================#
@@ -81,12 +46,12 @@ set_target_properties(glfw update_mappings PROPERTIES FOLDER "${VKL_EXTERNAL_FOL
 # Vulkan Launchpad Target        #
 #================================#
 
-set(Vkl_Header_Files "VulkanLaunchpad.h")
-set(Vkl_Source_Files "VulkanLaunchpad.cpp")
-source_group("Header Files" FILES ${Vkl_Header_Files})
-source_group("Source Files" FILES ${Vkl_Source_Files})
+set(VKL_HEADER_FILES "VulkanLaunchpad.h")
+set(VKL_SOURCE_FILES "VulkanLaunchpad.cpp")
+source_group("Header Files" FILES ${VKL_HEADER_FILES})
+source_group("Source Files" FILES ${VKL_SOURCE_FILES})
 
-add_library(${PROJECT_NAME} STATIC ${Vkl_Header_Files} ${Vkl_Source_Files})
+add_library(${PROJECT_NAME} STATIC ${VKL_HEADER_FILES} ${VKL_SOURCE_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC Vulkan::Vulkan glm::glm glfw
@@ -124,7 +89,3 @@ unset(BUILD_TEMPLATE CACHE)
 unset(USE_CCACHE CACHE)
 unset(USE_MSVC_RUNTIME_LIBRARY_DLL CACHE)
 unset(OVERRIDE_MSVCCRT CACHE)
-
-# unset(CMAKE_BUILD_TYPE CACHE)
-# unset(CMAKE_CONFIGURATION_TYPES CACHE)
-# unset(CMAKE_INSTALL_PREFIX CACHE)
