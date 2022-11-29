@@ -1766,14 +1766,17 @@ VklGeometryData vklLoadModelGeometry(const std::string& inputFilename)
 	for (int i = 0; i < attributes.vertices.size() / 3; i++) {
 		data.positions.push_back(glm::vec3(attributes.vertices[3 * i], attributes.vertices[3 * i + 1], attributes.vertices[3 * i + 2]));
 	}
-	for (int i = 0; i < shapes[0].mesh.indices.size(); i++) {
-		data.indices.push_back(shapes[0].mesh.indices[i].vertex_index);
-	}
-	for (int i = 0; i < attributes.texcoords.size()/2; i++) {
+	for (int i = 0; i < attributes.texcoords.size() / 3; i++) {
 		data.textureCoordinates.push_back(glm::vec3(attributes.texcoords[2 * i], attributes.texcoords[2 * i + 1], 0));
 	}
-	for (int i = 0; i < attributes.normals.size()/3; i++) {
+	for (int i = 0; i < attributes.normals.size() / 3; i++) {
 		data.normals.push_back(glm::vec3(attributes.normals[2 * i], attributes.normals[2 * i + 1], attributes.normals[2 * i + 2]));
+	}
+
+	for (tinyobj::shape_t shape : shapes) {
+		for (int i = 0; i < shape.mesh.indices.size(); i++) {
+			data.indices.push_back(shape.mesh.indices[i].vertex_index);
+		}
 	}
 	return data;
 }
