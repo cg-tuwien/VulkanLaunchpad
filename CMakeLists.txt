@@ -1,189 +1,114 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.14)
 
-# References to chapters throughout the file refer to Craig Scott's
-# "Professional CMake: A Practical Guide", published in 2018, unless
-# specified otherwise.
-
-# --log-context is needed in the cmake commandline options to make use
-# of this little helper in the log output (optional)
-list(APPEND CMAKE_MESSAGE_CONTEXT VulkanLaunchpad)
+#================================#
+# Vulkan Launchpad Project       #
+#================================#
 
 project(VulkanLaunchpad VERSION 0.1.0 LANGUAGES CXX)
 
-# Vulkan
+# check if this is root
+get_directory_property(HAS_PARENT PARENT_DIRECTORY)
+
+if(NOT HAS_PARENT)
+    find_package(Git QUIET)
+    if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    # Update submodules as needed
+        option(GIT_SUBMODULE "Check submodules during build" ON)
+        if(GIT_SUBMODULE)
+            message(STATUS "Submodule update")
+            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                            RESULT_VARIABLE GIT_SUBMOD_RESULT)
+            if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+                message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+            endif()
+        endif()
+    endif()
+endif()
+
+set(VKL_EXTERNAL_FOLDER "Dependencies")
+set(VKL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(VKL_EXTERNAL_DIR "${VKL_SOURCE_DIR}/external")
+
+#================================#
+# Vulkan Launchpad Compiler      #
+#================================#
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
+if(MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /Qpar")
+endif()
+
+#================================#
+# Vulkan Launchpad Dependencies  #
+#================================#
+
 find_package(Vulkan REQUIRED)
+set(ENABLE_GLSLANG_BINARIES OFF)
+set(ENABLE_HLSL OFF)
+set(ENABLE_CTEST OFF)
+set(ENABLE_GLSLANG_INSTALL OFF)
+set(ENABLE_PCH OFF)
+set(ENABLE_OPT OFF)
+set(ENABLE_SPVREMAPPER OFF)
+set(BUILD_EXTERNAL OFF)
+add_subdirectory("${VKL_EXTERNAL_DIR}/glslang" EXCLUDE_FROM_ALL)
+set(GLFW_BUILD_EXAMPLES OFF)
+set(GLFW_BUILD_TESTS OFF)
+set(GLFW_BUILD_DOCS OFF)
+set(GLFW_INSTALL OFF)
+add_subdirectory("${VKL_EXTERNAL_DIR}/glfw" EXCLUDE_FROM_ALL)
+add_subdirectory("${VKL_EXTERNAL_DIR}/glm" EXCLUDE_FROM_ALL)
 
-################################################################################
-# Configuration Options for Users
-################################################################################
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set_target_properties(glslang MachineIndependent GenericCodeGen OSDependent SPIRV OGLCompiler PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glslang")
+set_target_properties(glfw update_mappings PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glfw")
 
-# Directory to output any static or dynamic libraries to
-set(Vkl_Library_Output_Directory "./cmake-build/" CACHE STRING "Directory to output built libraries to, relative to CMAKE_CURRENT_SOURCE_DIR, defaults to './cmake-build/'")
+#================================#
+# Vulkan Launchpad Target        #
+#================================#
 
-# Build a static lib by default
-set(BUILD_STATIC_LIBS ON CACHE STRING "Should CMake create a compile_commands.json file?")
+set(VKL_HEADER_FILES "VulkanLaunchpad.h")
+set(VKL_SOURCE_FILES "VulkanLaunchpad.cpp")
+source_group("Header Files" FILES ${VKL_HEADER_FILES})
+source_group("Source Files" FILES ${VKL_SOURCE_FILES})
 
-################################################################################
-# Source groups
-################################################################################
-
-set(Vkl_Header_Files
-  "VulkanLaunchpad.h"
+add_library(${PROJECT_NAME} STATIC ${VKL_HEADER_FILES} ${VKL_SOURCE_FILES})
+add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+target_link_libraries(${PROJECT_NAME}
+	PUBLIC Vulkan::Vulkan glm::glm glfw
+	PRIVATE glslang MachineIndependent GenericCodeGen OSDependent SPIRV
 )
-source_group("Header Files" FILES ${Vkl_Header_Files})
-
-set(Vkl_Source_Files
-  "VulkanLaunchpad.cpp"
+target_include_directories(${PROJECT_NAME} 
+	INTERFACE "${VKL_SOURCE_DIR}"
+	PUBLIC "${VKL_EXTERNAL_DIR}/include"
 )
-source_group("Source Files" FILES ${Vkl_Source_Files})
+add_dependencies(${PROJECT_NAME} glfw glslang MachineIndependent GenericCodeGen OSDependent SPIRV)
 
-set(Vkl_All_Files ${Vkl_Header_Files} ${Vkl_Source_Files})
+#==================================#
+# Unset not needed cache variables #
+#==================================#
 
-################################################################################
-# Target
-################################################################################
+unset(ENABLE_EXCEPTIONS CACHE)
+unset(ENABLE_GLSLANG_JS CACHE)
+unset(ENABLE_HLSL CACHE)
+unset(ENABLE_OPT CACHE)
+unset(ENABLE_RTTI CACHE)
+unset(ENABLE_SPVREMAPPER CACHE)
+unset(SKIP_GLSLANG_INSTALL CACHE)
 
-# I don't know if we want to support building static/dynamic libraries
-#or if this library should stay include only.
+unset(GLFW_USE_HYBRID_HPG CACHE)
+unset(GLFW_VULKAN_STATIC CACHE)
 
-add_library(${PROJECT_NAME} INTERFACE)
+unset(LLVM_USE_CRT_DEBUG CACHE)
+unset(LLVM_USE_CRT_MINSIZEREL CACHE)
+unset(LLVM_USE_CRT_RELEASE CACHE)
+unset(LLVM_USE_CRT_RELWITHDEBINFO CACHE)
 
-if(BUILD_STATIC_LIBS)
-  add_library(${PROJECT_NAME}_static STATIC ${Vkl_All_Files})
-endif()
-
-if(BUILD_SHARED_LIBS)
-  add_library(${PROJECT_NAME}_shared SHARED ${Vkl_All_Files})
-endif()
-
-# "20.1. Project Version" and "21.3. Shared Library Versioning"
-set_target_properties(${PROJECT_NAME} PROPERTIES
-  VERSION ${VulkanLaunchpad_VERSION} # VulkanLaunchpad_VERSION is automatically
-                             # set by project(VulkanLaunchpad VERSION ...)
-  SOVERSION ${VulkanLaunchpad_VERSION_MAJOR} # VulkanLaunchpad is
-                                     # automatically set by
-                                     # project(VulkanLaunchpad VERSION
-                                     # ...)
-)
-
-# Hide symbols by default as explained in chapter "21.5.1. Specifying
-# Default Visibility"
-set_target_properties(${PROJECT_NAME} PROPERTIES
-  CXX_VISIBILITY_PRESET hidden
-  VISIBILITY_INLINES_HIDDEN TRUE
-)
-
-# The RootNamespace of a VS Project is used to determine naming for
-# managed resource DLLs.
-set(VS_GLOBAL_ROOTNAMESPACE ${PROJECT_NAME})
-
-# This sets the "keyword" attribute of the Visual Studio project.
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    VS_GLOBAL_KEYWORD "Win32Proj"
-)
-
-################################################################################
-# Target name and Output directory
-################################################################################
-# ARCHIVE_OUTPUT_DIRECTORY is used for static libraries on all platforms and import libraries associated with DLLs on Windows.
-
-if(BUILD_STATIC_LIBS)
-  set_target_properties(${PROJECT_NAME}_static PROPERTIES
-    OUTPUT_NAME "${PROJECT_NAME}_static_$<CONFIG>"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/${Vkl_Library_Output_Directory}"
-  )
-endif()
-
-if(BUILD_SHARED_LIBS)
-  set_target_properties(${PROJECT_NAME}_shared PROPERTIES
-    OUTPUT_NAME "${PROJECT_NAME}_shared_$<CONFIG>"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/${Vkl_Library_Output_Directory}"
-  )
-endif()
-
-################################################################################
-# MSVC runtime library
-################################################################################
-get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY)
-string(CONCAT "MSVC_RUNTIME_LIBRARY_STR"
-    $<$<CONFIG:Debug>:
-        MultiThreadedDebug # Equal to the /MTd VS compiler flag
-    >
-    $<$<OR:$<CONFIG:Release>,$<CONFIG:ReleaseExe>>:
-        MultiThreaded # Equal to the /MT VS compiler flag
-    >
-    $<$<NOT:$<OR:$<CONFIG:Debug>,$<CONFIG:Release>,$<CONFIG:ReleaseExe>>>:${MSVC_RUNTIME_LIBRARY_DEFAULT}>
-)
-set_target_properties(${PROJECT_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
-
-if(BUILD_STATIC_LIBS)
-  set_target_properties(${PROJECT_NAME}_static PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
-endif()
-
-if(BUILD_SHARED_LIBS)
-  set_target_properties(${PROJECT_NAME}_shared PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
-endif()
-
-
-################################################################################
-# Include directories
-################################################################################
-
-set(Vkl_Include_Dirs
-  "./external/include/"
-  "${Vulkan_INCLUDE_DIR}"
-)
-
-target_include_directories(${PROJECT_NAME} INTERFACE ${Vkl_Include_Dirs})
-
-if(BUILD_STATIC_LIBS)
-  target_include_directories(${PROJECT_NAME}_static PUBLIC ${Vkl_Include_Dirs})
-endif()
-
-if(BUILD_SHARED_LIBS)
-  target_include_directories(${PROJECT_NAME}_shared PUBLIC ${Vkl_Include_Dirs})
-endif()
-
-################################################################################
-# Dependencies
-################################################################################
-
-set(ADDITIONAL_LIBRARY_DEPENDENCIES
-    "$<$<CONFIG:Debug>:"
-        "glslangd"
-    ">"
-    "$<$<CONFIG:Release>:"
-        "glslang"
-    ">"
-    "Vulkan::Vulkan"
-)
-
-target_link_libraries(${PROJECT_NAME} INTERFACE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
-
-set(Vkl_Link_Dirs
-  "./external/lib/"
-  "$ENV{VULKAN_SDK}/Lib"
-)
-
-target_link_directories(${PROJECT_NAME} INTERFACE ${Vkl_Link_Dirs})
-
-if(BUILD_STATIC_LIBS)
-  target_link_directories(${PROJECT_NAME}_static PRIVATE ${Vkl_Link_Dirs})
-endif()
-
-if(BUILD_SHARED_LIBS)
-  target_link_directories(${PROJECT_NAME}_shared PRIVATE ${Vkl_Link_Dirs})
-endif()
-
-################################################################################
-# Compatibilty settings
-################################################################################
-
-# Some editors use `compile_commands.json` to parse includes, so we
-# want to always generate it for maximum editor support.
-if(NOT CMAKE_EXPORT_COMPILE_COMMANDS)
-  option(CMAKE_EXPORT_COMPILE_COMMANDS "Should CMake create a compile_commands.json file?" ON)
-#  set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE STRING "Should CMake create a compile_commands.json file?")
-endif()
-
-message(STATUS "Value of CMAKE_EXPORT_COMPILE_COMMANDS=${CMAKE_EXPORT_COMPILE_COMMANDS}")
+unset(BUILD_EXTERNAL CACHE)
+unset(BUILD_SHARED_LIBS CACHE)
+unset(BUILD_TEMPLATE CACHE)
+unset(USE_CCACHE CACHE)
+unset(USE_MSVC_RUNTIME_LIBRARY_DLL CACHE)
+unset(OVERRIDE_MSVCCRT CACHE)

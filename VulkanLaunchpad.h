@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <memory>
+#include <cstring>
 
 #define GLFW_INCLUDE_VULKAN
 
