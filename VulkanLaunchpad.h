@@ -50,7 +50,6 @@ struct VklSwapchainImageDetails {
     /*! The value that this image shall be cleared to at the beginning of a new frame: */
     VkClearValue clearValue;
 };
-
 /*!
  *	A struct describing the swap chain config in terms of used images.
  *	It can be perfectly valid to have only the colorImageDetails set.
@@ -601,6 +600,10 @@ VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char *file, uint32_t l
  */
 VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char *file, uint32_t face, uint32_t level);
 
-
-
+/*!
+*Loads a .obj model from the specified path and fills a VklGeometryData struct with the vertices, indices, normals and uv coordinates, if any exist.
+* 
+* @param file Path to a .obj model
+*/
+VklGeometryData vklLoadModelGeometry(const std::string& file);
 

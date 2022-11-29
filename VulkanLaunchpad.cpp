@@ -9,7 +9,8 @@
 #include <vulkan/vulkan.hpp>
 #include <unordered_map>
 #include <deque>
-
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tinyobjloader/tiny_obj_loader.h>
 //#define USE_SHADERC
 #define USE_GLSLANG
 
@@ -1701,4 +1702,78 @@ VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t l
 VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file)
 {
 	return vklLoadDdsImageLevelIntoHostCoherentBuffer(file, 0u);
+}
+
+std::string loadObjectFromFile(const std::string& objectfilename){
+	static const auto dev_objectdir = std::string("assets/objects_vk/");
+	static const auto objectdir = std::string("assets/objects/");
+	enum struct object_load_message_type { info, warning };
+	std::vector<std::tuple<std::string, object_load_message_type>> paths = {
+		std::make_tuple(dev_objectdir + objectfilename, object_load_message_type::warning),
+		std::make_tuple(objectdir + objectfilename,     object_load_message_type::info),
+		std::make_tuple(objectfilename,                 object_load_message_type::info),
+		std::make_tuple(objectdir,                      object_load_message_type::warning),
+	};
+
+	std::string path = {};
+
+	for (const auto& tpl : paths) {
+		// Check if file exists:
+		auto candidate = std::get<0>(tpl);
+		std::ifstream infile(candidate);
+		if (infile.good()) {
+			path = candidate;
+			switch (std::get<1>(tpl)) {
+			case object_load_message_type::info:
+				std::cout << "INFO: Loading object file from path[" << path << "]." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+				break;
+			case object_load_message_type::warning:
+				std::cout << "WARNING: Loading object file from path[" << path << "], consider storing it in the directory[" << objectdir << "]!" << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+				break;
+			default:
+				throw std::runtime_error("invalid object_load_message_type enum value");
+			}
+		}
+		if (!path.empty()) {
+			break;
+		}
+	}
+
+	if (path.empty()) { // Fail if object file could not be found:
+		VKL_EXIT_WITH_ERROR("Unable to load file[" + objectfilename + "].");
+	}
+
+	std::ifstream ifs(path);
+	std::string content((std::istreambuf_iterator<char>(ifs)),
+		(std::istreambuf_iterator<char>()));
+	return content;
+
+}
+
+VklGeometryData vklLoadModelGeometry(const std::string& inputFilename)
+{
+	tinyobj::attrib_t attributes;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string warning;
+	std::string error;
+	std::istringstream sourceStream(loadObjectFromFile("bunny.obj"));
+	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &warning, &error, &sourceStream))
+	{
+		throw std::runtime_error("ast::assets::loadOBJFile: Error: " + warning + error);
+	}
+	VklGeometryData data;
+	for (int i = 0; i < attributes.vertices.size() / 3; i++) {
+		data.positions.push_back(glm::vec3(attributes.vertices[3 * i], attributes.vertices[3 * i + 1], attributes.vertices[3 * i + 2]));
+	}
+	for (int i = 0; i < shapes[0].mesh.indices.size(); i++) {
+		data.indices.push_back(shapes[0].mesh.indices[i].vertex_index);
+	}
+	for (int i = 0; i < attributes.texcoords.size()/2; i++) {
+		data.textureCoordinates.push_back(glm::vec3(attributes.texcoords[2 * i], attributes.texcoords[2 * i + 1], 0));
+	}
+	for (int i = 0; i < attributes.normals.size()/3; i++) {
+		data.normals.push_back(glm::vec3(attributes.normals[2 * i], attributes.normals[2 * i + 1], attributes.normals[2 * i + 2]));
+	}
+	return data;
 }
