@@ -1757,7 +1757,7 @@ VklGeometryData vklLoadModelGeometry(const std::string& inputFilename)
 	std::vector<tinyobj::material_t> materials;
 	std::string warning;
 	std::string error;
-	std::istringstream sourceStream(loadObjectFromFile("bunny.obj"));
+	std::istringstream sourceStream(loadObjectFromFile(inputFilename));
 	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &warning, &error, &sourceStream))
 	{
 		throw std::runtime_error("ast::assets::loadOBJFile: Error: " + warning + error);
