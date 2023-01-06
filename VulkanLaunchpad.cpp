@@ -1750,7 +1750,17 @@ std::string loadObjectFromFile(const std::string& objectfilename){
 
 }
 
-VklGeometryData vklLoadModelGeometry(const std::string& inputFilename)
+std::size_t hash_vec3_vec2(glm::vec3 const& v3, glm::vec2 const& v2) {
+	std::size_t h = 0;
+	h = (h * 37) + std::hash<float>()(v3.x);
+	h = (h * 37) + std::hash<float>()(v3.y);
+	h = (h * 37) + std::hash<float>()(v3.z);
+	h = (h * 37) + std::hash<float>()(v2.x);
+	h = (h * 37) + std::hash<float>()(v2.y);
+	return h;
+}
+
+GeometryData vklLoadModelGeometry(const std::string& inputFilename)
 {
 	tinyobj::attrib_t attributes;
 	std::vector<tinyobj::shape_t> shapes;
@@ -1763,14 +1773,19 @@ VklGeometryData vklLoadModelGeometry(const std::string& inputFilename)
 		throw std::runtime_error("ast::assets::loadOBJFile: Error: " + warning + error);
 	}
 	GeometryData data;
-
+	std::unordered_map<std::size_t, uint32_t>uniqueVertices;
 	for (tinyobj::shape_t shape : shapes) {
 		for (const auto& index : shape.mesh.indices) {
-
-			data.positions.push_back(glm::vec3(attributes.vertices[3 * index.vertex_index], attributes.vertices[3 * index.vertex_index + 1], attributes.vertices[3 * index.vertex_index + 2]));
-			data.textureCoordinates.push_back(glm::vec2(attributes.texcoords[2 * index.texcoord_index], 1.0f - attributes.texcoords[2 * index.texcoord_index + 1]));
-			data.normals.push_back(glm::vec3(attributes.normals[2 * index.normal_index], attributes.normals[2 * index.normal_index + 1], attributes.normals[2 * index.normal_index + 2]));
-			data.indices.push_back(data.indices.size());
+			glm::vec3 pos = glm::vec3(attributes.vertices[3 * index.vertex_index], attributes.vertices[3 * index.vertex_index + 1], attributes.vertices[3 * index.vertex_index + 2]);
+			glm::vec2 uv = glm::vec2(attributes.texcoords[2 * index.texcoord_index], 1.0f - attributes.texcoords[2 * index.texcoord_index + 1]);
+			std::size_t hash = hash_vec3_vec2(pos, uv);
+			if (uniqueVertices.count(hash) == 0) {
+				uniqueVertices[hash] = static_cast<uint32_t>(data.positions.size());
+				data.positions.push_back(pos);
+				data.textureCoordinates.push_back(uv);
+				data.normals.push_back(glm::vec3(attributes.normals[2 * index.normal_index], attributes.normals[2 * index.normal_index + 1], attributes.normals[2 * index.normal_index + 2]));
+			}
+			data.indices.push_back(uniqueVertices[hash]);
 
 		}
 	}
