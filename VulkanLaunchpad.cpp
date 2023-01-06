@@ -1762,20 +1762,16 @@ VklGeometryData vklLoadModelGeometry(const std::string& inputFilename)
 	{
 		throw std::runtime_error("ast::assets::loadOBJFile: Error: " + warning + error);
 	}
-	VklGeometryData data;
-	for (int i = 0; i < attributes.vertices.size() / 3; i++) {
-		data.positions.push_back(glm::vec3(attributes.vertices[3 * i], attributes.vertices[3 * i + 1], attributes.vertices[3 * i + 2]));
-	}
-	for (int i = 0; i < attributes.texcoords.size() / 3; i++) {
-		data.textureCoordinates.push_back(glm::vec3(attributes.texcoords[2 * i], attributes.texcoords[2 * i + 1], 0));
-	}
-	for (int i = 0; i < attributes.normals.size() / 3; i++) {
-		data.normals.push_back(glm::vec3(attributes.normals[2 * i], attributes.normals[2 * i + 1], attributes.normals[2 * i + 2]));
-	}
+	GeometryData data;
 
 	for (tinyobj::shape_t shape : shapes) {
-		for (int i = 0; i < shape.mesh.indices.size(); i++) {
-			data.indices.push_back(shape.mesh.indices[i].vertex_index);
+		for (const auto& index : shape.mesh.indices) {
+
+			data.positions.push_back(glm::vec3(attributes.vertices[3 * index.vertex_index], attributes.vertices[3 * index.vertex_index + 1], attributes.vertices[3 * index.vertex_index + 2]));
+			data.textureCoordinates.push_back(glm::vec2(attributes.texcoords[2 * index.texcoord_index], 1.0f - attributes.texcoords[2 * index.texcoord_index + 1]));
+			data.normals.push_back(glm::vec3(attributes.normals[2 * index.normal_index], attributes.normals[2 * index.normal_index + 1], attributes.normals[2 * index.normal_index + 2]));
+			data.indices.push_back(data.indices.size());
+
 		}
 	}
 	return data;
