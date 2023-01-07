@@ -1783,7 +1783,7 @@ GeometryData vklLoadModelGeometry(const std::string& inputFilename)
 				uniqueVertices[hash] = static_cast<uint32_t>(data.positions.size());
 				data.positions.push_back(pos);
 				data.textureCoordinates.push_back(uv);
-				data.normals.push_back(glm::vec3(attributes.normals[2 * index.normal_index], attributes.normals[2 * index.normal_index + 1], attributes.normals[2 * index.normal_index + 2]));
+				data.normals.push_back(glm::vec3(attributes.normals[3 * index.normal_index], attributes.normals[3 * index.normal_index + 1], attributes.normals[3 * index.normal_index + 2]));
 			}
 			data.indices.push_back(uniqueVertices[hash]);
 
