@@ -1750,11 +1750,14 @@ std::string loadObjectFromFile(const std::string& objectfilename){
 
 }
 
-std::size_t hash_vec3_vec2(glm::vec3 const& v3, glm::vec2 const& v2) {
+std::size_t hashVertexNormalUv(glm::vec3 const& v3, glm::vec3 const& v3_2, glm::vec2 const& v2) {
 	std::size_t h = 0;
 	h = (h * 37) + std::hash<float>()(v3.x);
 	h = (h * 37) + std::hash<float>()(v3.y);
 	h = (h * 37) + std::hash<float>()(v3.z);
+	h = (h * 37) + std::hash<float>()(v3_2.x);
+	h = (h * 37) + std::hash<float>()(v3_2.y);
+	h = (h * 37) + std::hash<float>()(v3_2.z);
 	h = (h * 37) + std::hash<float>()(v2.x);
 	h = (h * 37) + std::hash<float>()(v2.y);
 	return h;
@@ -1778,12 +1781,13 @@ GeometryData vklLoadModelGeometry(const std::string& inputFilename)
 		for (const auto& index : shape.mesh.indices) {
 			glm::vec3 pos = glm::vec3(attributes.vertices[3 * index.vertex_index], attributes.vertices[3 * index.vertex_index + 1], attributes.vertices[3 * index.vertex_index + 2]);
 			glm::vec2 uv = glm::vec2(attributes.texcoords[2 * index.texcoord_index], 1.0f - attributes.texcoords[2 * index.texcoord_index + 1]);
-			std::size_t hash = hash_vec3_vec2(pos, uv);
+			glm::vec3 normal = glm::vec3(attributes.normals[3 * index.normal_index], attributes.normals[3 * index.normal_index + 1], attributes.normals[3 * index.normal_index + 2]);
+			std::size_t hash = hashVertexNormalUv(pos, normal, uv);
 			if (uniqueVertices.count(hash) == 0) {
 				uniqueVertices[hash] = static_cast<uint32_t>(data.positions.size());
 				data.positions.push_back(pos);
 				data.textureCoordinates.push_back(uv);
-				data.normals.push_back(glm::vec3(attributes.normals[3 * index.normal_index], attributes.normals[3 * index.normal_index + 1], attributes.normals[3 * index.normal_index + 2]));
+				data.normals.push_back(normal);
 			}
 			data.indices.push_back(uniqueVertices[hash]);
 
