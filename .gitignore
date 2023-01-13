@@ -24,7 +24,6 @@
 *.la
 *.a
 
-
 # Executables
 **/bin/
 **/build/
@@ -48,6 +47,7 @@
 *.dtbcache
 *.lock
 *.ide*
+*.txt.user
 
 # Build helpers and results:
 **/obj/
@@ -64,6 +64,9 @@
 # Emacs
 **/.dir-locals.el
 
+# QtCreator
+**/build*
+
 # CMake
 **/CMakeSettings.json
 CMakeLists.txt.user
@@ -76,5 +79,8 @@ cmake_install.cmake
 install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
-_deps
+cmake-build*
+_project
 
+# macOS
+.DS_Store
