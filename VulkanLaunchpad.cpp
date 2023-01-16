@@ -1758,7 +1758,7 @@ std::size_t checkIndices(int const& vertex, int const& normal, int const& uv) {
 	return h;
 }
 
-GeometryData vklLoadModelGeometry(const std::string& inputFilename)
+VklGeometryData vklLoadModelGeometry(const std::string& inputFilename)
 {
 	tinyobj::attrib_t attributes;
 	std::vector<tinyobj::shape_t> shapes;
