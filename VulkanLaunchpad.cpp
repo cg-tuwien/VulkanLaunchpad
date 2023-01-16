@@ -1770,7 +1770,7 @@ GeometryData vklLoadModelGeometry(const std::string& inputFilename)
 	{
 		throw std::runtime_error("ast::assets::loadOBJFile: Error: " + warning + error);
 	}
-	GeometryData data;
+	VklGeometryData data;
 	std::unordered_map<std::size_t, uint32_t>uniqueVertices;
 	for (tinyobj::shape_t shape : shapes) {
 		for (const auto& index : shape.mesh.indices) {
