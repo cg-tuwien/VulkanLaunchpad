@@ -166,7 +166,7 @@ struct VklGeometryData {
 
     //! A vector of vertex texture coordinates, optional.
     /*! If you do not desire to have any texture coordinates for your vertices, leave this vector empty. */
-    std::vector<glm::vec3> textureCoordinates;
+    std::vector<glm::vec2> textureCoordinates;
 };
 
 /*!
