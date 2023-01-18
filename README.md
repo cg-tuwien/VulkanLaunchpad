@@ -33,6 +33,7 @@ Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Gi
 - Install the following extensions (navigate to `View -> Extensions`):
     - [CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools) (which will also install the [CMake](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools) extension)
     - [C/C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)
+    - _Recommended:_ [Shader languages support for VS Code](https://marketplace.visualstudio.com/items?itemName=slevesque.shader)
     - Restart VS Code, or execute the comand `Developer: Reload Window` (default shortcut: `Ctrl+R` or **TODO: MacOS, Linux**)!
 - Open the folder containing the `CMakeLists.txt` file (the root folder of this repository)!
     - This can be accomplished through `File -> Open Folder...`, you might also get the option to `Open with Code` from a folder's context menu in Windows Explorer.
