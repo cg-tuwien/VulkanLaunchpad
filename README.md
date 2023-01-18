@@ -4,7 +4,12 @@ A framework by TU Wien targeted at Vulkan beginners. It abstracts some of the ha
 
 ## Setup Instructions
 
-Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/) and optimally an integrated development environment (IDE). In the following, we describe setup instructions for some common setups:
+Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/) and optimally an integrated development environment (IDE). In the following, we describe setup instructions for common operating systems and editors/IDEs (click the links in the index to jump to the respective section):
+- [Operating Systems](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#operating-systems)
+    - [Windows](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#windows)
+- [Editors and IDEs](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#editors-and-ides)
+    - [Visual Studio Code (VS Code)](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#visual-studio-code-vs-code)
+    - [Visual Studio 2022 Community](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#visual-studio-2022-community)
 
 ### Operating Systems
 
