@@ -8,7 +8,7 @@ Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Gi
 
 ### Operating Systems
 
-**Windows**
+#### Windows
 - Download and install [Git for Windows](https://git-scm.com/download/win)!
     - Add Git to your PATH! This can be done through the installer, selecting the `Git from the command line and also from 3rd-party software` option. 
 - Download and install one of the latest [Vulkan SDKs for Windows](https://vulkan.lunarg.com/sdk/home#windows)! (At time of writing, the most recent version is 1.3.236.0.)
@@ -23,7 +23,7 @@ Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Gi
 
 ### Editors and IDEs
 
-**Visual Studio Code (VS Code)**
+#### Visual Studio Code (VS Code)
 - Download and install [Visual Studio Code](https://code.visualstudio.com/download)!
     - Select the option `Add "Open with Code" action to Widows Explorer directory context menu` for more convenience.
 - Install the following extensions (navigate to `View -> Extensions`):
@@ -39,7 +39,7 @@ Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Gi
     - TODO for VulkanLaunchpadStarter: `CMake: Debug` to start debugging the the selected target (default shortcut: `Ctrl+F5` on Windows).
     - TODO for VulkanLaunchpadStarter: `CMake: Run` to start debugging the the selected target (default shortcut: `Shift+F5` on Windows).
 
-**Visual Studio 2022 Community**
+#### Visual Studio 2022 Community
 - Download and install [Visual Studio Community 2022](https://visualstudio.microsoft.com/vs/community/), or a newer version.
     - Select the `Desktop development with C++` workload in the installer!
     - This should already install CMake. Should you encounter any problems in that regard, try installing CMake through its [Windows x64 Installer](https://cmake.org/download/)!
