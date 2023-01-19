@@ -5,11 +5,11 @@ A framework by TU Wien targeted at Vulkan beginners. It abstracts some of the ha
 ## Setup Instructions
 
 Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/) and optimally an integrated development environment (IDE). In the following, we describe setup instructions for common operating systems and editors/IDEs (click the links in the index to jump to the respective section):
-- [Operating Systems](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#operating-systems)
-    - [Windows](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#windows)
-- [Editors and IDEs](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#editors-and-ides)
-    - [Visual Studio Code (VS Code)](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#visual-studio-code-vs-code)
-    - [Visual Studio 2022 Community](https://github.com/cg-tuwien/VulkanLaunchpad/blob/setup/README.md#visual-studio-2022-community)
+- [Operating Systems](#operating-systems)
+    - [Windows](#windows)
+- [Editors and IDEs](#editors-and-ides)
+    - [Visual Studio Code (VS Code)](#visual-studio-code-vs-code)
+    - [Visual Studio 2022 Community](#visual-studio-2022-community)
 
 ### Operating Systems
 
@@ -24,7 +24,6 @@ Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Gi
 - Download and install CMake through its [Windows x64 Installer](https://cmake.org/download/)!
     - Select an option to `Add CMake to the system PATH ...` during installation!
     - _Important:_ Ensure to get CMake version `3.22` or newer!
-
 
 #### Linux
 
@@ -151,8 +150,6 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
 	cmake --build . --config Debug
 ```
 
-
-
 ### Editors and IDEs
 
 #### Visual Studio Code (VS Code)
@@ -169,15 +166,15 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
     - `CMake: Select a Kit` then select, e.g., `Visual Studio Build Tools 2022 Release - amd64` (if you are using Windows and have installed the `Build Tools for Visual Studio 2022`).
     - `CMake: Select Variant` and select `Debug` for a build with debug information, or `Release` for one without.
     - `CMake: Build Target`, then select `VulkanLaunchpad STATIC_LIBRARY` to build Vulkan Launchpad as a static library. Alternatively, just build everything by selecting `ALL_BUILD`.
-    - TODO for VulkanLaunchpadStarter: `CMake: Debug` to start debugging the the selected target (default shortcut: `Ctrl+F5` or **TODO: MacOS, Linux**).
-    - TODO for VulkanLaunchpadStarter: `CMake: Run` to start debugging the the selected target (default shortcut: `Shift+F5` or **TODO: MacOS, Linux**).
 
 #### Visual Studio 2022 Community
 - Download and install [Visual Studio Community 2022](https://visualstudio.microsoft.com/vs/community/), or a newer version.
     - Select the `Desktop development with C++` workload in the installer!
     - Should you encounter CMake-related problems, install one of the latest versions of CMake _after_ installing Visual Studio Community 2022 using the [Windows x64 Installer](https://cmake.org/download/).
         - Ensure to select an option to `Add CMake to the system PATH ...` during installation!
-        - _Important:_ Ensure to get CMake version `3.24` or newer!
+        - _Important:_ Ensure to get CMake version `3.22` or newer!
+- _Recommended:_ Install the [GLSL language integration](https://marketplace.visualstudio.com/items?itemName=DanielScherzer.GLSL) extension for syntax highlighting in shader files!
+    - _Hint:_ Go to `Tools -> Options -> GLSL language integration`. For Vulkan shader development, either set `Live compiling` to `False` (syntax highlighting only), or set the `External compiler executable file` to, e.g., the path to `glslangValidator.exe`!
 - Open the folder containing the `CMakeLists.txt` file (the root folder of this repository)!
     - This can be accomplished through `File -> Open -> Folder...`, you might also get the option to `Open with Visual Studio` from a folder's context menu in Windows Explorer.
     - You should be able to observer in the `Output` tab that CMake generation started.
