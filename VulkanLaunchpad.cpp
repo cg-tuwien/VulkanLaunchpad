@@ -505,38 +505,12 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromMe
 
 std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromFileAndCreateShaderModuleAndStageInfo(const std::string& shaderfilename, const vk::ShaderStageFlagBits shaderStage)
 {
-	static const auto dev_shaderdir = std::string("assets/shaders_vk/");
-	static const auto shaderdir = std::string("assets/shaders/");
-	enum struct shader_load_message_type { info, warning };
-	std::vector<std::tuple<std::string, shader_load_message_type>> paths = {
-		std::make_tuple(dev_shaderdir + shaderfilename, shader_load_message_type::warning),
-		std::make_tuple(shaderdir + shaderfilename,     shader_load_message_type::info),
-		std::make_tuple(shaderfilename,                 shader_load_message_type::info),
-		std::make_tuple(shaderdir,                      shader_load_message_type::warning),
-	};
-
     std::string path = {};
 
-	for (const auto& tpl : paths) {
-		// Check if file exists:
-		auto candidate = std::get<0>(tpl);
-		std::ifstream infile(candidate);
-		if (infile.good()) {
-			path = candidate;
-			switch (std::get<1>(tpl)) {
-			case shader_load_message_type::info:
-				std::cout << "INFO: Loading shader file from path[" << path << "]." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
-				break;
-			case shader_load_message_type::warning:
-				std::cout << "WARNING: Loading shader file from path[" << path << "], consider storing it in the directory[" << shaderdir << "]!" << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
-				break;
-			default: 
-				throw std::runtime_error("invalid shader_load_message_type enum value");
-			}
-		}
-		if (!path.empty()) {
-			break;
-		}
+	std::ifstream infile(shaderfilename);
+	if (infile.good()) {
+		path = shaderfilename;
+		std::cout << "INFO: Loading shader file from path[" << path << "]." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
 	}
 
 	if (path.empty()) { // Fail if shader file could not be found:
