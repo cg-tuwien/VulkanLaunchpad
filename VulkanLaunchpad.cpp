@@ -488,14 +488,14 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromMe
 	case vk::ShaderStageFlagBits::eGeometry: glslangStage = GLSLANG_STAGE_GEOMETRY; break;
 	case vk::ShaderStageFlagBits::eFragment: glslangStage = GLSLANG_STAGE_FRAGMENT; break;
 	case vk::ShaderStageFlagBits::eCompute: glslangStage = GLSLANG_STAGE_COMPUTE; break;
-	case vk::ShaderStageFlagBits::eRaygenKHR: glslangStage = GLSLANG_STAGE_RAYGEN_NV; break;
-	case vk::ShaderStageFlagBits::eAnyHitKHR: glslangStage = GLSLANG_STAGE_ANYHIT_NV; break;
-	case vk::ShaderStageFlagBits::eClosestHitKHR: glslangStage = GLSLANG_STAGE_CLOSESTHIT_NV; break;
-	case vk::ShaderStageFlagBits::eMissKHR: glslangStage = GLSLANG_STAGE_MISS_NV; break;
-	case vk::ShaderStageFlagBits::eIntersectionKHR: glslangStage = GLSLANG_STAGE_INTERSECT_NV; break;
-	case vk::ShaderStageFlagBits::eCallableKHR: glslangStage = GLSLANG_STAGE_CALLABLE_NV; break;
-	case vk::ShaderStageFlagBits::eTaskNV: glslangStage = GLSLANG_STAGE_TASK_NV; break;
-	case vk::ShaderStageFlagBits::eMeshNV: glslangStage = GLSLANG_STAGE_MESH_NV; break;
+	case vk::ShaderStageFlagBits::eRaygenKHR: glslangStage = GLSLANG_STAGE_RAYGEN; break;
+	case vk::ShaderStageFlagBits::eAnyHitKHR: glslangStage = GLSLANG_STAGE_ANYHIT; break;
+	case vk::ShaderStageFlagBits::eClosestHitKHR: glslangStage = GLSLANG_STAGE_CLOSESTHIT; break;
+	case vk::ShaderStageFlagBits::eMissKHR: glslangStage = GLSLANG_STAGE_MISS; break;
+	case vk::ShaderStageFlagBits::eIntersectionKHR: glslangStage = GLSLANG_STAGE_INTERSECT; break;
+	case vk::ShaderStageFlagBits::eCallableKHR: glslangStage = GLSLANG_STAGE_CALLABLE; break;
+	case vk::ShaderStageFlagBits::eTaskNV: glslangStage = GLSLANG_STAGE_TASK; break;
+	case vk::ShaderStageFlagBits::eMeshNV: glslangStage = GLSLANG_STAGE_MESH; break;
 	}
 	auto spirv = compileShaderSourceToSpirv(shaderCode, shaderName, glslangStage);
 #endif
