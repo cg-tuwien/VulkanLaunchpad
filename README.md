@@ -23,7 +23,7 @@ Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Gi
     - _Note:_ Should you decide to install Visual Studio Community 2022 (as described below), you don't have to install the Build Tools for Visual Studio 2022 separately. Also in this case of using the Visual Studio Community 2022 installer, ensure to select the `Desktop development with C++` workload! 
 - Download and install CMake through its [Windows x64 Installer](https://cmake.org/download/)!
     - Select an option to `Add CMake to the system PATH ...` during installation!
-    - _Important:_ Ensure to get CMake version `3.24` or newer!
+    - _Important:_ Ensure to get CMake version `3.22` or newer!
 
 ### Editors and IDEs
 
@@ -47,7 +47,7 @@ Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Gi
     - Select the `Desktop development with C++` workload in the installer!
     - Should you encounter CMake-related problems, install one of the latest versions of CMake _after_ installing Visual Studio Community 2022 using the [Windows x64 Installer](https://cmake.org/download/).
         - Ensure to select an option to `Add CMake to the system PATH ...` during installation!
-        - _Important:_ Ensure to get CMake version `3.24` or newer!
+        - _Important:_ Ensure to get CMake version `3.22` or newer!
 - _Recommended:_ Install the [GLSL language integration](https://marketplace.visualstudio.com/items?itemName=DanielScherzer.GLSL) extension for syntax highlighting in shader files!
     - _Hint:_ Go to `Tools -> Options -> GLSL language integration`. For Vulkan shader development, either set `Live compiling` to `False` (syntax highlighting only), or set the `External compiler executable file` to, e.g., the path to `glslangValidator.exe`!
 - Open the folder containing the `CMakeLists.txt` file (the root folder of this repository)!
