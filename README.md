@@ -41,8 +41,6 @@ Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Gi
     - `CMake: Select a Kit` then select, e.g., `Visual Studio Build Tools 2022 Release - amd64` (if you are using Windows and have installed the `Build Tools for Visual Studio 2022`).
     - `CMake: Select Variant` and select `Debug` for a build with debug information, or `Release` for one without.
     - `CMake: Build Target`, then select `VulkanLaunchpad STATIC_LIBRARY` to build Vulkan Launchpad as a static library. Alternatively, just build everything by selecting `ALL_BUILD`.
-    - TODO for VulkanLaunchpadStarter: `CMake: Debug` to start debugging the the selected target (default shortcut: `Ctrl+F5` or **TODO: MacOS, Linux**).
-    - TODO for VulkanLaunchpadStarter: `CMake: Run` to start debugging the the selected target (default shortcut: `Shift+F5` or **TODO: MacOS, Linux**).
 
 #### Visual Studio 2022 Community
 - Download and install [Visual Studio Community 2022](https://visualstudio.microsoft.com/vs/community/), or a newer version.
