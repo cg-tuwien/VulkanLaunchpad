@@ -1629,7 +1629,7 @@ VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32
 	auto imageFace = static_cast<gli::texture2d::size_type>(static_cast<size_t>(face));
 	auto imageLevel = static_cast<gli::texture2d::size_type>(static_cast<size_t>(level));
 
-	auto gliTpl = loadDdsImageWithGli(file, imageLevel);
+	auto gliTpl = loadDdsImageWithGli(file, static_cast<uint32_t>(imageLevel));
 	const auto& gliTex = std::get<gli::texture2d>(gliTpl);
 
 	imageLevel = glm::clamp(imageLevel, gliTex.base_level(), gliTex.max_level());
