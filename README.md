@@ -7,13 +7,20 @@ A framework by TU Wien targeted at Vulkan beginners. It abstracts some of the ha
 Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/) and optimally an integrated development environment (IDE). In the following, we describe setup instructions for common operating systems and editors/IDEs (click the links in the index to jump to the respective section):
 - [Operating Systems](#operating-systems)
     - [Windows](#windows)
+    - [Linux](#linux)
+        - [Dependencies](#dependencies)
+        - [Ubuntu 22.04](#ubuntu-2204)
+        - [Ubuntu 20.04](#ubuntu-2004)
+        - [Linux Mint 21.1](#linux-mint-211)
+        - [Debian Bullseye](#debian-bullseye)
+        - [Automatic Git Clone and Build via Commandline](#automatic-git-clone-and-build-via-commandline)
 - [Editors and IDEs](#editors-and-ides)
     - [Visual Studio Code (VS Code)](#visual-studio-code-vs-code)
     - [Visual Studio 2022 Community](#visual-studio-2022-community)
 
-### Operating Systems
+## Operating Systems
 
-#### Windows
+### Windows
 - Download and install [Git for Windows](https://git-scm.com/download/win)!
     - Add Git to your PATH! This can be done through the installer, selecting the `Git from the command line and also from 3rd-party software` option. 
 - Download and install one of the latest [Vulkan SDKs for Windows](https://vulkan.lunarg.com/sdk/home#windows)! (At time of writing, the most recent version is 1.3.236.0.)
@@ -25,9 +32,10 @@ Vulkan Launchpad runs on Windows, MacOS, and Linux. For building you'll need [Gi
     - Select an option to `Add CMake to the system PATH ...` during installation!
     - _Important:_ Ensure to get CMake version `3.22` or newer!
 
-#### Linux
 
-##### Dependencies
+### Linux
+
+#### Dependencies
 
 We tested the compilation on the four different Linux distributions below.
 Each of them has slightly different requirements, however the lines of bash code boil down to:
@@ -38,7 +46,7 @@ Each of them has slightly different requirements, however the lines of bash code
 4. Updates the default gcc and g++ version to the freshly installed version 11.
 5. Invokes `vulkaninfo` to see if the Vulkan SDK and graphics drivers are installed correctly.
 
-###### Ubuntu 22.04
+##### Ubuntu 22.04
 
 ```
 #!/bin/bash
@@ -64,7 +72,7 @@ echo "Now running \"vulkaninfo\" to see if vulkan has been installed successfull
 vulkaninfo
 ```
 
-###### Ubuntu 20.04
+##### Ubuntu 20.04
 
 _Note:_ Only tested in a Docker environment.
 
@@ -82,7 +90,7 @@ sudo apt update && sudo apt upgrade -y && sudo apt install -y wget gpg git lsb-r
 	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 60 --slave /usr/bin/g++ g++ /usr/bin/g++-11
 ```
 
-###### Linux Mint 21.1
+##### Linux Mint 21.1
 
 _Note:_ Only tested in a Docker environment.
 
@@ -101,7 +109,7 @@ sudo apt update && sudo apt upgrade -y && sudo apt install -y mint-dev-tools bui
 	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 60 --slave /usr/bin/g++ g++ /usr/bin/g++-11
 ```
 
-###### Debian Bullseye
+##### Debian Bullseye
 
 _Note:_ Only tested in a Docker environment.
 
@@ -139,7 +147,7 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
 	cmake --build . --config Debug
 ```
 
-###### Automatic Git Clone and Build via Commandline:
+##### Automatic Git Clone and Build via Commandline
 
 ```
 git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
@@ -150,9 +158,11 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
 	cmake --build . --config Debug
 ```
 
-### Editors and IDEs
 
-#### Visual Studio Code (VS Code)
+
+## Editors and IDEs
+
+### Visual Studio Code (VS Code)
 - Download and install [Visual Studio Code](https://code.visualstudio.com/download)!
     - Select the option `Add "Open with Code" action to Widows Explorer directory context menu` for more convenience.
 - Install the following extensions (navigate to `View -> Extensions`):
@@ -167,7 +177,7 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
     - `CMake: Select Variant` and select `Debug` for a build with debug information, or `Release` for one without.
     - `CMake: Build Target`, then select `VulkanLaunchpad STATIC_LIBRARY` to build Vulkan Launchpad as a static library. Alternatively, just build everything by selecting `ALL_BUILD`.
 
-#### Visual Studio 2022 Community
+### Visual Studio 2022 Community
 - Download and install [Visual Studio Community 2022](https://visualstudio.microsoft.com/vs/community/), or a newer version.
     - Select the `Desktop development with C++` workload in the installer!
     - Should you encounter CMake-related problems, install one of the latest versions of CMake _after_ installing Visual Studio Community 2022 using the [Windows x64 Installer](https://cmake.org/download/).
@@ -182,6 +192,6 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
         - Wait a bit until you see the message `CMake generation finished.`.
     - Execute `Build -> Build All` (default shortcut: `Ctrl+Shift+B`) to build Vulkan Launchpad as a static library.
 
-## Documentation
+# Documentation
 
 TODO
