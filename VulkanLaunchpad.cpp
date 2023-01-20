@@ -1200,11 +1200,15 @@ double vklWaitForNextSwapchainImage()
 
 	// Just out of curiosity, measure the wait time:
 	auto t0 = glfwGetTime();
-
 	// Wait for the fence of the current image before reusing the same image available semaphore (as we have used #CONCURRENT_FRAMES in the past)
-	mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
-	mDevice.resetFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get());
-
+	vk::Result returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
+	if (returnCode != vk::Result::eSuccess) {
+		VKL_EXIT_WITH_ERROR(std::string("Error while waiting for Fences for Frame" + std::to_string(mFrameInFlightIndex) + ". Error Code : " + to_string(returnCode)));
+	}
+	returnCode = mDevice.resetFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get());
+	if (returnCode != vk::Result::eSuccess) {
+		VKL_EXIT_WITH_ERROR(std::string("Error while resetting Fences for Frame"+ std::to_string(mFrameInFlightIndex) +". Error Code : " + to_string(returnCode)));
+	}
 	// Keep house with the in-flight images:
 	for (auto& mapping : mImagesInFlightFenceIndices) { // However, we don't know which index this fence had been mapped to => we have to search
 		if (mFrameInFlightIndex == mapping) {
@@ -1218,8 +1222,9 @@ double vklWaitForNextSwapchainImage()
 	// Safety-check on the returned image index:
 	if (mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] >= 0) {
 		// it is set => must perform an extra wait
-		mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex]].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
+		returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex]].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
 		// But do not reset! Otherwise we will wait forever at the next waitForFences that will happen for sure.
+		VKL_EXIT_WITH_ERROR("Error while waiting for Fences for Frame" + std::to_string(mFrameInFlightIndex) + ". Error Code : " + to_string(returnCode));
 	}
 
 	// Submit a "fake" work package to the queue in order to wait for the image to become available before starting to render into it:
@@ -1262,8 +1267,11 @@ void vklPresentCurrentSwapchainImage()
 		.setSwapchainCount(1u)
 		.setPSwapchains(&swapchainHandle)
 		.setPImageIndices(&mCurrentSwapChainImageIndex);
-	mQueue.presentKHR(presentInfo);
-
+	vk::Result returnCode;
+	returnCode = mQueue.presentKHR(presentInfo);
+	if (returnCode != vk::Result::eSuccess) {
+		VKL_EXIT_WITH_ERROR("Error while presenting swapchain image with id" + std::to_string(mCurrentSwapChainImageIndex) + ". Error Code : " + to_string(returnCode));
+	}
 	mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] = mFrameInFlightIndex;
 }
 
@@ -1618,8 +1626,8 @@ VklImageInfo vklGetDdsImageInfo(const char* file)
 VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level)
 {
 #ifdef USE_GLI
-	auto imageFace = static_cast<gli::texture2d::size_type>(face);
-	auto imageLevel = static_cast<gli::texture2d::size_type>(level);
+	auto imageFace = static_cast<gli::texture2d::size_type>(static_cast<size_t>(face));
+	auto imageLevel = static_cast<gli::texture2d::size_type>(static_cast<size_t>(level));
 
 	auto gliTpl = loadDdsImageWithGli(file, imageLevel);
 	const auto& gliTex = std::get<gli::texture2d>(gliTpl);
