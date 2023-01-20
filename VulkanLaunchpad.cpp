@@ -1,4 +1,3 @@
-#pragma comment(user,"file exists since step=0")
 /*
  * Copyright 2021 TU Wien, Institute of Visual Computing & Human-Centered Technology.
  *
@@ -1710,4 +1709,40 @@ VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t l
 VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file)
 {
 	return vklLoadDdsImageLevelIntoHostCoherentBuffer(file, 0u);
+}
+
+glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect_ratio, float near_plane_distance, float far_plane_distance)
+{
+	static const glm::mat4 sInverseRotateAroundXFrom_RH_Yup_to_RH_Ydown = std::invoke([]() {
+		// We assume all the spaces up to and including view space to feature a Y-axis pointing upwards.
+		// Screen space in Vulkan, however, has the +Y-axis pointing downwards, +X to the left, and +Z into the screen.
+		// We are staying in right-handed (RH) coordinate systems throughout ALL the spaces.
+		// 
+		// Therefore, we are representing the coordinates from here on -- actually exactly BETWEEN View Space and
+		// Clip Space -- in a coordinate system which is rotated 180° around X, having Y point down, still RH.
+		const glm::mat4 rotateAroundXFrom_RH_Yup_to_RH_Ydown = glm::mat4{
+			 glm::vec4{ 1.f,  0.f,  0.f,  0.f},
+			-glm::vec4{ 0.f,  1.f,  0.f,  0.f},
+			-glm::vec4{ 0.f,  0.f,  1.f,  0.f},
+			 glm::vec4{ 0.f,  0.f,  0.f,  1.f},
+		};
+
+		// ...in order to represent coordinates in that aforementioned space, we need the inverse, u know:
+		return glm::inverse(rotateAroundXFrom_RH_Yup_to_RH_Ydown);
+	});
+
+	// Scaling factor for the x and y coordinates which depends on the 
+	// field of view (and the aspect ratio... see matrix construction)
+	auto xyScale = 1.0f / glm::tan(field_of_view / 2.f);
+	auto F_N = far_plane_distance - near_plane_distance;
+	auto zScale = far_plane_distance / F_N;
+
+	glm::mat4 m(0.0f);
+	m[0][0] = xyScale / aspect_ratio;
+	m[1][1] = xyScale;
+	m[2][2] = zScale;
+	m[2][3] = 1.f; // Offset z...
+	m[3][2] = -near_plane_distance * zScale; // ... by this amount
+
+	return m * sInverseRotateAroundXFrom_RH_Yup_to_RH_Ydown;
 }

@@ -1,12 +1,7 @@
 /*
- * Copyright 2021 TU Wien, Institute of Visual Computing & Human-Centered Technology.
- * This file is part of the ECG Lab Framework and must not be redistributed.
- *
- * Original version created by Lukas Gersthofer and Bernhard Steiner.
- * Vulkan edition created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at).
+ * Copyright 2023 TU Wien, Institute of Visual Computing & Human-Centered Technology.
  */
 #pragma once
-
 
 #include <memory>
 
@@ -25,7 +20,20 @@ public:
 	 * @param	projection_matrix		The projection matrix to be used for this camera
 	 */
 	Camera(glm::mat4 projection_matrix);
-	
+
+	/*!
+	 * Camera constructor which internally creates a default projection matrix using the 
+	 * aspect ratio calculated from the given window_width and window_height parameters.
+	 * @param	window_width 		The width  of your surface to calculate the aspect ratio for the projection matrix.
+	 * @param	window_height		The height of your surface to calculate the aspect ratio for the projection matrix.
+	 */
+	Camera(int window_width, int window_height);
+
+	/*!
+	 * Camera constructor which internally creates a default projection matrix.
+	 */
+	Camera();
+
 	virtual ~Camera();
 
 	/*!

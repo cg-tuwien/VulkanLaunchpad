@@ -69,8 +69,8 @@ set_target_properties(glfw update_mappings PROPERTIES FOLDER "${VKL_EXTERNAL_FOL
 # Vulkan Launchpad Target        #
 #================================#
 
-set(VKL_HEADER_FILES "VulkanLaunchpad.h")
-set(VKL_SOURCE_FILES "VulkanLaunchpad.cpp")
+set(VKL_HEADER_FILES "VulkanLaunchpad.h" "Camera.h")
+set(VKL_SOURCE_FILES "VulkanLaunchpad.cpp" "Camera.cpp")
 source_group("Header Files" FILES ${VKL_HEADER_FILES})
 source_group("Source Files" FILES ${VKL_SOURCE_FILES})
 
