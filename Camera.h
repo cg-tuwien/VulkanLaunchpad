@@ -60,12 +60,9 @@ public:
 	void update(double x, double y, float zoom, bool dragging, bool strafing);
 
 	/*!
-	* Updates the camera's position and view matrix according to the input
-	* @param zoom		zoom multiplier
-	* @param dragging	is the camera dragging
-	* @param strafing	is the camera strafing
+	* Updates the camera's position and view matrix
 	*/
-	void update(float zoom = 2.0f, bool dragging = true, bool strafing = true);
+	void update();
 
 protected:
 	glm::mat4 _viewMatrix;
