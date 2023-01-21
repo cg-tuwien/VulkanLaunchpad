@@ -3,15 +3,18 @@
  */
 #include "Camera.h"
 #include <glm/gtx/quaternion.hpp>
- /*!
-  *	This callback function gets invoked by GLFW during glfwPollEvents() if there was
-  *	mouse button input that can be processed by our application.
-  */
 
 static float g_zoom = 6.0f;
 static bool g_strafing;
 static bool g_dragging;
+static int g_initCount = 0; // Relevant for proper callback management
+static GLFWmousebuttonfun g_previousMouseButtonFun = nullptr;
+static GLFWscrollfun g_previousScrollFun = nullptr;
 
+/*!
+ *	This callback function gets invoked by GLFW during glfwPollEvents() if there was
+ *	mouse button input that can be processed by our application.
+ */
 void mouseButtonCallbackFromGlfw(GLFWwindow* glfw_window, int button, int action, int mods) {
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 		g_dragging = true;
@@ -25,6 +28,11 @@ void mouseButtonCallbackFromGlfw(GLFWwindow* glfw_window, int button, int action
 	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
 		g_strafing = false;
 	}
+
+	if (g_previousMouseButtonFun) {
+		// Keep potentially previously set callbacks intact:
+		g_previousMouseButtonFun(glfw_window, button, action, mods);
+	}
 }
 
 /*!
@@ -33,15 +41,40 @@ void mouseButtonCallbackFromGlfw(GLFWwindow* glfw_window, int button, int action
  */
 void scrollCallbackFromGlfw(GLFWwindow* glfw_window, double xoffset, double yoffset) {
 	g_zoom -= static_cast<float>(yoffset) * 0.5f;
+
+	if (g_previousScrollFun) {
+		// Keep potentially previously set callbacks intact:
+		g_previousScrollFun(glfw_window, xoffset, yoffset);
+	}
 }
 
 void initGlfwCallbacks(GLFWwindow* window) {
-	// Establish a callback function for handling mouse button events:
-	glfwSetMouseButtonCallback(window, mouseButtonCallbackFromGlfw);
+	++g_initCount;
 
+	// Establish a callback function for handling mouse button events:
+	// (and keeping potentially previously set callbacks intact)
+	auto previous_mouse_callback = glfwSetMouseButtonCallback(window, mouseButtonCallbackFromGlfw);
+	if (!g_previousMouseButtonFun) {
+		// Do not overwrite with multiple Camera callbacks, keep the original one
+		g_previousMouseButtonFun = previous_mouse_callback;
+	}
 
 	// Establish a callback function for handling mouse scroll events:
-	glfwSetScrollCallback(window, scrollCallbackFromGlfw);
+	auto previous_scroll_callback = glfwSetScrollCallback(window, scrollCallbackFromGlfw);
+	if (!g_previousScrollFun) {
+		// Do not overwrite with multiple Camera callbacks, keep the original one
+		g_previousScrollFun = previous_scroll_callback;
+	}
+}
+
+void deinitGlfwCallbacks(GLFWwindow* window) {
+	--g_initCount;
+
+	if (0 == g_initCount) {
+		// Restore the original callbacks (which could have been nullptr):
+		glfwSetMouseButtonCallback(window, g_previousMouseButtonFun);
+		glfwSetScrollCallback(window, g_previousScrollFun);
+	}
 }
 
 Camera::Camera(GLFWwindow* window, glm::mat4 projection_matrix)
@@ -50,16 +83,18 @@ Camera::Camera(GLFWwindow* window, glm::mat4 projection_matrix)
 	initGlfwCallbacks(window);
 }
 
-Camera::Camera(GLFWwindow* window, int window_width, int window_height)
-	: Camera(window, vklCreatePerspectiveProjectionMatrix(glm::radians(60.0f), static_cast<float>(window_width) / static_cast<float>(window_height), 0.1f, 1000.0f))
+Camera::Camera(GLFWwindow* window)
+	: Camera(window, glm::mat4{})
 { 
+	// And now let's overwrite the projection matrix we just set to glm::mat4{}:
+	int window_width, window_height;
+	glfwGetWindowSize(window, &window_width, &window_height);
+	_projMatrix = vklCreatePerspectiveProjectionMatrix(glm::radians(60.0f), static_cast<float>(window_width) / static_cast<float>(window_height), 0.1f, 1000.0f);
 }
 
-Camera::Camera(GLFWwindow* window)
-	: Camera(window, 1, 1)
-{ }
 Camera::~Camera()
 {
+	deinitGlfwCallbacks(_window);
 }
 
 glm::vec3 Camera::getPosition() const

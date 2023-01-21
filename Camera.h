@@ -23,15 +23,6 @@ public:
 	Camera(GLFWwindow* window, glm::mat4 projection_matrix);
 
 	/*!
-	 * Camera constructor which internally creates a default projection matrix using the 
-	 * aspect ratio calculated from the given window_width and window_height parameters.
-	 * @param	window				The glfw window handle.
-	 * @param	window_width 		The width  of your surface to calculate the aspect ratio for the projection matrix.
-	 * @param	window_height		The height of your surface to calculate the aspect ratio for the projection matrix.
-	 */
-	Camera(GLFWwindow* window, int window_width, int window_height);
-
-	/*!
 	 * Camera constructor which internally creates a default projection matrix.
 	 * @param	window					The glfw window handle.
 	 */
