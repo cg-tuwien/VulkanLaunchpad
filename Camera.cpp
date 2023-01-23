@@ -9,9 +9,6 @@ std::list<VklCamera> mCameras;
 static float g_zoom = 6.0f;
 static bool g_strafing;
 static bool g_dragging;
-static int g_initCount = 0; // Relevant for proper callback management
-static GLFWmousebuttonfun g_previousMouseButtonFun = nullptr;
-static GLFWscrollfun g_previousScrollFun = nullptr;
 
 /*!
  *	This callback function gets invoked by GLFW during glfwPollEvents() if there was
@@ -31,9 +28,11 @@ void mouseButtonCallbackFromGlfw(GLFWwindow* glfw_window, int button, int action
 		g_strafing = false;
 	}
 
-	if (g_previousMouseButtonFun) {
-		// Keep potentially previously set callbacks intact:
-		g_previousMouseButtonFun(glfw_window, button, action, mods);
+	// Keep potentially previously set callbacks intact:
+	for (const VklCamera& cam : mCameras) {
+		if (nullptr != cam._previousMouseButtonFun) {
+			cam._previousMouseButtonFun(glfw_window, button, action, mods);
+		}
 	}
 }
 
@@ -44,43 +43,23 @@ void mouseButtonCallbackFromGlfw(GLFWwindow* glfw_window, int button, int action
 void scrollCallbackFromGlfw(GLFWwindow* glfw_window, double xoffset, double yoffset) {
 	g_zoom -= static_cast<float>(yoffset) * 0.5f;
 
-	if (g_previousScrollFun) {
-		// Keep potentially previously set callbacks intact:
-		g_previousScrollFun(glfw_window, xoffset, yoffset);
-	}
-}
-
-void initGlfwCallbacks(GLFWwindow* window) {
-	++g_initCount;
-
-	// Establish a callback function for handling mouse button events:
-	// (and keeping potentially previously set callbacks intact)
-	auto previous_mouse_callback = glfwSetMouseButtonCallback(window, mouseButtonCallbackFromGlfw);
-	if (!g_previousMouseButtonFun) {
-		// Do not overwrite with multiple Camera callbacks, keep the original one
-		g_previousMouseButtonFun = previous_mouse_callback;
-	}
-
-	// Establish a callback function for handling mouse scroll events:
-	auto previous_scroll_callback = glfwSetScrollCallback(window, scrollCallbackFromGlfw);
-	if (!g_previousScrollFun) {
-		// Do not overwrite with multiple Camera callbacks, keep the original one
-		g_previousScrollFun = previous_scroll_callback;
-	}
-}
-
-void deinitGlfwCallbacks(GLFWwindow* window) {
-	--g_initCount;
-
-	if (0 == g_initCount) {
-		// Restore the original callbacks (which could have been nullptr):
-		glfwSetMouseButtonCallback(window, g_previousMouseButtonFun);
-		glfwSetScrollCallback(window, g_previousScrollFun);
+	// Keep potentially previously set callbacks intact:
+	for (const VklCamera& cam : mCameras) {
+		if (nullptr != cam._previousScrollFun) {
+			cam._previousScrollFun(glfw_window, xoffset, yoffset);
+		}
 	}
 }
 
 VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix)
 { 
+	// Establish a callback function for handling mouse button events:
+	// (and keeping potentially previously set callbacks intact)
+	auto previous_mouse_callback = glfwSetMouseButtonCallback(window, mouseButtonCallbackFromGlfw);
+
+	// Establish a callback function for handling mouse scroll events:
+	auto previous_scroll_callback = glfwSetScrollCallback(window, scrollCallbackFromGlfw);
+
 	auto& newCam = mCameras.emplace_back(VklCamera{
 		glm::mat4(1),
 		projection_matrix,
@@ -91,10 +70,10 @@ VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix)
 		glm::vec3{0},
 		glm::vec3{0},
 		glm::vec3{0},
-		window
+		window,
+		previous_mouse_callback,
+		previous_scroll_callback
 	});
-
-	initGlfwCallbacks(window);
 
 	return &newCam;
 
@@ -119,7 +98,10 @@ void vklDestroyCamera(VklCameraHandle handle)
 	auto it = findCamera(handle);
 
 	if (mCameras.end() != it) {
-		deinitGlfwCallbacks(it->_window);
+		// Restore the original callbacks (which could have been nullptr):
+		glfwSetMouseButtonCallback(it->_window, it->_previousMouseButtonFun);
+		glfwSetScrollCallback(it->_window, it->_previousScrollFun);
+
 		mCameras.erase(it);
 	}
 	else {

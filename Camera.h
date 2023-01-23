@@ -23,6 +23,8 @@ struct VklCamera
 	glm::vec3 ttt;
 	glm::vec3 tt;
 	GLFWwindow* _window;
+	GLFWmousebuttonfun _previousMouseButtonFun;
+	GLFWscrollfun _previousScrollFun;
 };
 
 /*!
