@@ -116,7 +116,7 @@ glm::vec3 vklGetCameraPosition(VklCameraHandle handle)
 		return handle->mPosition;
 	}
 	else {
-		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraPosition unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+		VKL_EXIT_WITH_ERROR("No camera found for the given VklCameraHandle in vklGetCameraPosition.");
 	}
 }
 
@@ -128,7 +128,7 @@ glm::mat4 vklGetCameraViewMatrix(VklCameraHandle handle)
 		return handle->mViewMatrix;
 	}
 	else {
-		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraViewMatrix unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+		VKL_EXIT_WITH_ERROR("No camera found for the given VklCameraHandle in vklGetCameraViewMatrix.");
 	}
 }
 
@@ -140,7 +140,7 @@ glm::mat4 vklGetCameraProjectionMatrix(VklCameraHandle handle)
 		return handle->mProjMatrix;
 	}
 	else {
-		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraProjectionMatrix unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+		VKL_EXIT_WITH_ERROR("No camera found for the given VklCameraHandle in vklGetCameraProjectionMatrix.");
 	}
 }
 
@@ -152,7 +152,7 @@ glm::mat4 vklGetCameraViewProjectionMatrix(VklCameraHandle handle)
 		return handle->mProjMatrix * handle->mViewMatrix;
 	}
 	else {
-		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraViewProjectionMatrix unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+		VKL_EXIT_WITH_ERROR("No camera found for the given VklCameraHandle in vklGetCameraViewProjectionMatrix.");
 	}
 }
 
