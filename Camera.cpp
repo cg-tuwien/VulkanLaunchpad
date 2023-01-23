@@ -6,9 +6,9 @@
 #include <list>
 
 std::list<VklCamera> mCameras;
-static float g_zoom = 6.0f;
-static bool g_strafing;
-static bool g_dragging;
+float mInput1 = 6.0f;
+bool mInput2;
+bool mInput3;
 
 /*!
  *	This callback function gets invoked by GLFW during glfwPollEvents() if there was
@@ -16,16 +16,16 @@ static bool g_dragging;
  */
 void mouseButtonCallbackFromGlfw(GLFWwindow* glfw_window, int button, int action, int mods) {
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-		g_dragging = true;
+		mInput3 = true;
 	}
 	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-		g_dragging = false;
+		mInput3 = false;
 	}
 	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-		g_strafing = true;
+		mInput2 = true;
 	}
 	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
-		g_strafing = false;
+		mInput2 = false;
 	}
 
 	// Keep potentially previously set callbacks intact:
@@ -41,7 +41,7 @@ void mouseButtonCallbackFromGlfw(GLFWwindow* glfw_window, int button, int action
  *	mouse scroll input that can be processed by our application.
  */
 void scrollCallbackFromGlfw(GLFWwindow* glfw_window, double xoffset, double yoffset) {
-	g_zoom -= static_cast<float>(yoffset) * 0.5f;
+	mInput1 -= static_cast<float>(yoffset) * 0.5f;
 
 	// Keep potentially previously set callbacks intact:
 	for (const VklCamera& cam : mCameras) {
@@ -258,5 +258,5 @@ void vklUpdateCamera(VklCameraHandle handle)
 	}
 
 	glfwGetCursorPos(it->_window, &it->x, &it->y);
-	vklUpdateCamera(handle, it->x, it->y, g_zoom, g_dragging, g_strafing);
+	vklUpdateCamera(handle, it->x, it->y, mInput1, mInput3, mInput2);
 }
