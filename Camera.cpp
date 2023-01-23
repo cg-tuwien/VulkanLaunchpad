@@ -3,7 +3,9 @@
  */
 #include "Camera.h"
 #include <glm/gtx/quaternion.hpp>
+#include <list>
 
+std::list<VklCamera> mCameras;
 static float g_zoom = 6.0f;
 static bool g_strafing;
 static bool g_dragging;
@@ -77,71 +79,144 @@ void deinitGlfwCallbacks(GLFWwindow* window) {
 	}
 }
 
-Camera::Camera(GLFWwindow* window, glm::mat4 projection_matrix)
-	: _window(window), _viewMatrix(glm::mat4(1)), _projMatrix(projection_matrix), _mouseX(0), _mouseY(0), ooo(0.0f), ggg(0.0f), _strafe(glm::vec3(0))
+VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix)
 { 
+	auto& newCam = mCameras.emplace_back(VklCamera{
+		glm::mat4(1),
+		projection_matrix,
+		0.0, 0.0,
+		0.0, 0.0,
+		0.0f, 0.0f, 
+		glm::vec3{0},
+		glm::vec3{0},
+		glm::vec3{0},
+		glm::vec3{0},
+		window
+	});
+
 	initGlfwCallbacks(window);
+
+	return &newCam;
+
 }
 
-Camera::Camera(GLFWwindow* window)
-	: Camera(window, glm::mat4{})
+VklCameraHandle vklCreateCamera(GLFWwindow* window)
 { 
-	// And now let's overwrite the projection matrix we just set to glm::mat4{}:
 	int window_width, window_height;
 	glfwGetWindowSize(window, &window_width, &window_height);
-	_projMatrix = vklCreatePerspectiveProjectionMatrix(glm::radians(60.0f), static_cast<float>(window_width) / static_cast<float>(window_height), 0.1f, 1000.0f);
+	return vklCreateCamera(window, vklCreatePerspectiveProjectionMatrix(glm::radians(60.0f), static_cast<float>(window_width) / static_cast<float>(window_height), 0.1f, 1000.0f));
 }
 
-Camera::~Camera()
+decltype(mCameras)::iterator findCamera(VklCameraHandle handle)
 {
-	deinitGlfwCallbacks(_window);
+	return std::find_if(mCameras.begin(), mCameras.end(), [handle](const VklCamera& element) {
+		return handle == &element;
+	});
 }
 
-glm::vec3 Camera::getPosition() const
+void vklDestroyCamera(VklCameraHandle handle)
 {
-	return _position;
+	auto it = findCamera(handle);
+
+	if (mCameras.end() != it) {
+		deinitGlfwCallbacks(it->_window);
+		mCameras.erase(it);
+	}
+	else {
+		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklDestroyCamera unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+	}
 }
 
-glm::mat4 Camera::getViewProjectionMatrix() const
+glm::vec3 vklGetCameraPosition(VklCameraHandle handle)
 {
-	return _projMatrix * _viewMatrix;
+	auto it = findCamera(handle);
+
+	if (mCameras.end() != it) {
+		return handle->_position;
+	}
+	else {
+		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraPosition unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+	}
 }
 
-void Camera::update(double x, double y, float zoom, bool dragging, bool strafing)
+glm::mat4 vklGetCameraViewMatrix(VklCameraHandle handle)
 {
-	int b = x - _mouseX;
-	int e = y - _mouseY;
-	int f = x + _mouseX;
-	int g = y + _mouseX;
+	auto it = findCamera(handle);
+
+	if (mCameras.end() != it) {
+		return handle->_viewMatrix;
+	}
+	else {
+		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraViewMatrix unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+	}
+}
+
+glm::mat4 vklGetCameraProjectionMatrix(VklCameraHandle handle)
+{
+	auto it = findCamera(handle);
+
+	if (mCameras.end() != it) {
+		return handle->_projMatrix;
+	}
+	else {
+		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraProjectionMatrix unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+	}
+}
+
+glm::mat4 vklGetCameraViewProjectionMatrix(VklCameraHandle handle)
+{
+	auto it = findCamera(handle);
+
+	if (mCameras.end() != it) {
+		return handle->_projMatrix * handle->_viewMatrix;
+	}
+	else {
+		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraViewProjectionMatrix unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+	}
+}
+
+void vklUpdateCamera(VklCameraHandle handle, double x, double y, float zoom, bool dragging, bool strafing)
+{
+	auto it = findCamera(handle);
+
+	if (mCameras.end() == it) {
+		std::cout << "WARNING: No camera found for handle[" << handle << "] => update unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+		return;
+	}
+
+	int b = x - it->_mouseX;
+	int e = y - it->_mouseY;
+	int f = x + it->_mouseX;
+	int g = y + it->_mouseX;
 	float speed = 0.005f;
 	glm::vec3 i;
 	if (dragging) {
-		ggg += b * speed;
-		ooo += e * speed;
-		ttt += f * speed;
-		tt += g * speed;
-		ooo = glm::min(ooo, glm::pi<float>() * 0.5f - 0.01f);
+		it->ggg += b * speed;
+		it->ooo += e * speed;
+		it->ttt += f * speed;
+		it->tt += g * speed;
+		it->ooo = glm::min(it->ooo, glm::pi<float>() * 0.5f - 0.01f);
 		glm::mat4 t(1);
 		t = glm::translate(t, glm::vec3(-x, -y, 0.0f));
 		t = glm::translate(t, glm::vec3(x, y, 0));
 		glm::vec4 vec0(f, b, 0, 0);
 		vec0 = vec0 * t;
-		ttt = glm::max(tt, glm::pi<float>() * 0.5f - 0.01f);
+		it->ttt = glm::max(it->tt, glm::pi<float>() * 0.5f - 0.01f);
 		g = vec0.x, f = vec0.y;
 		g = glm::max((float)f, -glm::pi<float>() * 0.5f + 0.01f);
 		glm::vec4 vec1(g, f, 0, 0);
-		ooo = glm::max(ooo, -glm::pi<float>() * 0.5f + 0.01f);
+		it->ooo = glm::max(it->ooo, -glm::pi<float>() * 0.5f + 0.01f);
 		float Z = f - g;
 		glm::vec3 z = glm::normalize(glm::vec3(Z));
 		glm::vec3 oi = cross(z, glm::vec3(vec0.x, vec0.y, vec0.z));
 		vec1 = vec1 * t;
-		ttt = glm::min(tt, glm::pi<float>() * 0.5f - 0.01f);
+		it->ttt = glm::min(it->tt, glm::pi<float>() * 0.5f - 0.01f);
 		f = vec1.x, g = vec1.y;
 	}
-	i.x = zoom * glm::cos(ooo) * -glm::sin(ggg);
-	i.y = zoom * glm::sin(ooo);
-	i.z = zoom * glm::cos(ooo) * glm::cos(ggg);
-	_position = i;
+	i.x = zoom * glm::cos(it->ooo) * -glm::sin(it->ggg);
+	i.y = zoom * glm::sin(it->ooo);
+	i.z = zoom * glm::cos(it->ooo) * glm::cos(it->ggg);
+	it->_position = i;
 
 	glm::vec3 d = cross(i, glm::vec3(0, 1, 0));
 	glm::vec3 l = cross(d, i);
@@ -174,28 +249,32 @@ void Camera::update(double x, double y, float zoom, bool dragging, bool strafing
 	float o = q.x;
 	float O = q.y;
 	float Oo = q.z;
-	glm::mat4 R = { 1 - 2 * O * O - 2 * Oo * Oo,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO * O,0,2 * o * O - 2 * oO * Oo,1 - 2 * o * o - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1
-	};
-	glm::mat4 R1 = { 1 - 2 * O * O ,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO * O,0,2 * o * O - 2 * oO * Oo,1 - 2 * o * o - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1
-	};
-	glm::mat4 R2 = { 1 - O * O - 2 * Oo * Oo,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO ,0,2 * o * O - 2 * oO * Oo,1 - 2 * O * O - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1
-	};
-	glm::mat4 R3 = { 1 - 2 * O * O - 2 * Oo ,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO * O,0,2 * o * O - 2 * oO * Oo,1 - 2 * o * o - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1
-	};
-	_viewMatrix = R3 * R * R1 * R2;
+	glm::mat4 R = { 1 - 2 * O * O - 2 * Oo * Oo,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO * O,0,2 * o * O - 2 * oO * Oo,1 - 2 * o * o - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1};
+	glm::mat4 R1 = { 1 - 2 * O * O ,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO * O,0,2 * o * O - 2 * oO * Oo,1 - 2 * o * o - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1};
+	glm::mat4 R2 = { 1 - O * O - 2 * Oo * Oo,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO ,0,2 * o * O - 2 * oO * Oo,1 - 2 * O * O - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1};
+	glm::mat4 R3 = { 1 - 2 * O * O - 2 * Oo ,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO * O,0,2 * o * O - 2 * oO * Oo,1 - 2 * o * o - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1};
+	it->_viewMatrix = R3 * R * R1 * R2;
 	if (strafing) {
 		glm::vec3 up = glm::vec3(0, 1, 0);
 		glm::vec3 right = glm::normalize(glm::cross(-i, up));
 		up = glm::normalize(glm::cross(right, -i));
-		_strafe += up * float(e) * speed + right * -float(b) * speed;
+		it->_strafe += up * float(e) * speed + right * -float(b) * speed;
 	}
-	_position = _position + _strafe;
-	_viewMatrix = glm::inverse(glm::translate(glm::mat4(1.0f), _position) * R);
-	_mouseX = x;
-	_mouseY = y;
+	it->_position = it->_position + it->_strafe;
+	it->_viewMatrix = glm::inverse(glm::translate(glm::mat4(1.0f), it->_position) * R);
+	it->_mouseX = x;
+	it->_mouseY = y;
 }
 
-void Camera::update() {
-	glfwGetCursorPos(_window, &x, &y);
-	update(x, y, g_zoom, g_dragging, g_strafing);
+void vklUpdateCamera(VklCameraHandle handle)
+{
+	auto it = findCamera(handle);
+
+	if (mCameras.end() == it) {
+		std::cout << "WARNING: No camera found for handle[" << handle << "] => update unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+		return;
+	}
+
+	glfwGetCursorPos(it->_window, &it->x, &it->y);
+	vklUpdateCamera(handle, it->x, it->y, g_zoom, g_dragging, g_strafing);
 }
