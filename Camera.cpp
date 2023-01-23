@@ -165,10 +165,10 @@ void vklUpdateCamera(VklCameraHandle handle, double x, double y, float zoom, boo
 		return;
 	}
 
-	int b = x - it->mMouseX;
-	int e = y - it->mMouseY;
-	int f = x + it->mMouseX;
-	int g = y + it->mMouseX;
+	int b = static_cast<int>(x - it->mMouseX);
+	int e = static_cast<int>(y - it->mMouseY);
+	int f = static_cast<int>(x + it->mMouseX);
+	int g = static_cast<int>(y + it->mMouseX);
 	float speed = 0.005f;
 	glm::vec3 i;
 	if (dragging) {
@@ -183,16 +183,16 @@ void vklUpdateCamera(VklCameraHandle handle, double x, double y, float zoom, boo
 		glm::vec4 vec0(f, b, 0, 0);
 		vec0 = vec0 * t;
 		it->mTtt = glm::max(it->mTt, glm::pi<float>() * 0.5f - 0.01f);
-		g = vec0.x, f = vec0.y;
-		g = glm::max((float)f, -glm::pi<float>() * 0.5f + 0.01f);
+		g = static_cast<int>(vec0.x), f = static_cast<int>(vec0.y);
+		g = static_cast<int>(glm::max((float)f, -glm::pi<float>() * 0.5f + 0.01f));
 		glm::vec4 vec1(g, f, 0, 0);
 		it->mOoo = glm::max(it->mOoo, -glm::pi<float>() * 0.5f + 0.01f);
-		float Z = f - g;
+		float Z = static_cast<float>(f - g);
 		glm::vec3 z = glm::normalize(glm::vec3(Z));
 		glm::vec3 oi = cross(z, glm::vec3(vec0.x, vec0.y, vec0.z));
 		vec1 = vec1 * t;
 		it->mTtt = glm::min(it->mTt, glm::pi<float>() * 0.5f - 0.01f);
-		f = vec1.x, g = vec1.y;
+		f = static_cast<int>(vec1.x), g = static_cast<int>(vec1.y);
 	}
 	i.x = zoom * glm::cos(it->mOoo) * -glm::sin(it->mGgg);
 	i.y = zoom * glm::sin(it->mOoo);
