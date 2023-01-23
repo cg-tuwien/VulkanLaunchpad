@@ -75,7 +75,6 @@ VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix)
 	});
 
 	return &newCam;
-
 }
 
 VklCameraHandle vklCreateCamera(GLFWwindow* window)
