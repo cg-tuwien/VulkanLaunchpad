@@ -30,8 +30,8 @@ void mouseButtonCallbackFromGlfw(GLFWwindow* glfw_window, int button, int action
 
 	// Keep potentially previously set callbacks intact:
 	for (const VklCamera& cam : mCameras) {
-		if (nullptr != cam._previousMouseButtonFun) {
-			cam._previousMouseButtonFun(glfw_window, button, action, mods);
+		if (nullptr != cam.mPreviousMouseButtonFun) {
+			cam.mPreviousMouseButtonFun(glfw_window, button, action, mods);
 		}
 	}
 }
@@ -45,8 +45,8 @@ void scrollCallbackFromGlfw(GLFWwindow* glfw_window, double xoffset, double yoff
 
 	// Keep potentially previously set callbacks intact:
 	for (const VklCamera& cam : mCameras) {
-		if (nullptr != cam._previousScrollFun) {
-			cam._previousScrollFun(glfw_window, xoffset, yoffset);
+		if (nullptr != cam.mPreviousScrollFun) {
+			cam.mPreviousScrollFun(glfw_window, xoffset, yoffset);
 		}
 	}
 }
@@ -63,7 +63,6 @@ VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix)
 	auto& newCam = mCameras.emplace_back(VklCamera{
 		glm::mat4(1),
 		projection_matrix,
-		0.0, 0.0,
 		0.0, 0.0,
 		0.0f, 0.0f, 
 		glm::vec3{0},
@@ -99,8 +98,8 @@ void vklDestroyCamera(VklCameraHandle handle)
 
 	if (mCameras.end() != it) {
 		// Restore the original callbacks (which could have been nullptr):
-		glfwSetMouseButtonCallback(it->_window, it->_previousMouseButtonFun);
-		glfwSetScrollCallback(it->_window, it->_previousScrollFun);
+		glfwSetMouseButtonCallback(it->mWindow, it->mPreviousMouseButtonFun);
+		glfwSetScrollCallback(it->mWindow, it->mPreviousScrollFun);
 
 		mCameras.erase(it);
 	}
@@ -114,7 +113,7 @@ glm::vec3 vklGetCameraPosition(VklCameraHandle handle)
 	auto it = findCamera(handle);
 
 	if (mCameras.end() != it) {
-		return handle->_position;
+		return handle->mPosition;
 	}
 	else {
 		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraPosition unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
@@ -126,7 +125,7 @@ glm::mat4 vklGetCameraViewMatrix(VklCameraHandle handle)
 	auto it = findCamera(handle);
 
 	if (mCameras.end() != it) {
-		return handle->_viewMatrix;
+		return handle->mViewMatrix;
 	}
 	else {
 		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraViewMatrix unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
@@ -138,7 +137,7 @@ glm::mat4 vklGetCameraProjectionMatrix(VklCameraHandle handle)
 	auto it = findCamera(handle);
 
 	if (mCameras.end() != it) {
-		return handle->_projMatrix;
+		return handle->mProjMatrix;
 	}
 	else {
 		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraProjectionMatrix unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
@@ -150,7 +149,7 @@ glm::mat4 vklGetCameraViewProjectionMatrix(VklCameraHandle handle)
 	auto it = findCamera(handle);
 
 	if (mCameras.end() != it) {
-		return handle->_projMatrix * handle->_viewMatrix;
+		return handle->mProjMatrix * handle->mViewMatrix;
 	}
 	else {
 		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklGetCameraViewProjectionMatrix unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
@@ -166,39 +165,39 @@ void vklUpdateCamera(VklCameraHandle handle, double x, double y, float zoom, boo
 		return;
 	}
 
-	int b = x - it->_mouseX;
-	int e = y - it->_mouseY;
-	int f = x + it->_mouseX;
-	int g = y + it->_mouseX;
+	int b = x - it->mMouseX;
+	int e = y - it->mMouseY;
+	int f = x + it->mMouseX;
+	int g = y + it->mMouseX;
 	float speed = 0.005f;
 	glm::vec3 i;
 	if (dragging) {
-		it->ggg += b * speed;
-		it->ooo += e * speed;
-		it->ttt += f * speed;
-		it->tt += g * speed;
-		it->ooo = glm::min(it->ooo, glm::pi<float>() * 0.5f - 0.01f);
+		it->mGgg += b * speed;
+		it->mOoo += e * speed;
+		it->mTtt += f * speed;
+		it->mTt += g * speed;
+		it->mOoo = glm::min(it->mOoo, glm::pi<float>() * 0.5f - 0.01f);
 		glm::mat4 t(1);
 		t = glm::translate(t, glm::vec3(-x, -y, 0.0f));
 		t = glm::translate(t, glm::vec3(x, y, 0));
 		glm::vec4 vec0(f, b, 0, 0);
 		vec0 = vec0 * t;
-		it->ttt = glm::max(it->tt, glm::pi<float>() * 0.5f - 0.01f);
+		it->mTtt = glm::max(it->mTt, glm::pi<float>() * 0.5f - 0.01f);
 		g = vec0.x, f = vec0.y;
 		g = glm::max((float)f, -glm::pi<float>() * 0.5f + 0.01f);
 		glm::vec4 vec1(g, f, 0, 0);
-		it->ooo = glm::max(it->ooo, -glm::pi<float>() * 0.5f + 0.01f);
+		it->mOoo = glm::max(it->mOoo, -glm::pi<float>() * 0.5f + 0.01f);
 		float Z = f - g;
 		glm::vec3 z = glm::normalize(glm::vec3(Z));
 		glm::vec3 oi = cross(z, glm::vec3(vec0.x, vec0.y, vec0.z));
 		vec1 = vec1 * t;
-		it->ttt = glm::min(it->tt, glm::pi<float>() * 0.5f - 0.01f);
+		it->mTtt = glm::min(it->mTt, glm::pi<float>() * 0.5f - 0.01f);
 		f = vec1.x, g = vec1.y;
 	}
-	i.x = zoom * glm::cos(it->ooo) * -glm::sin(it->ggg);
-	i.y = zoom * glm::sin(it->ooo);
-	i.z = zoom * glm::cos(it->ooo) * glm::cos(it->ggg);
-	it->_position = i;
+	i.x = zoom * glm::cos(it->mOoo) * -glm::sin(it->mGgg);
+	i.y = zoom * glm::sin(it->mOoo);
+	i.z = zoom * glm::cos(it->mOoo) * glm::cos(it->mGgg);
+	it->mPosition = i;
 
 	glm::vec3 d = cross(i, glm::vec3(0, 1, 0));
 	glm::vec3 l = cross(d, i);
@@ -235,17 +234,17 @@ void vklUpdateCamera(VklCameraHandle handle, double x, double y, float zoom, boo
 	glm::mat4 R1 = { 1 - 2 * O * O ,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO * O,0,2 * o * O - 2 * oO * Oo,1 - 2 * o * o - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1};
 	glm::mat4 R2 = { 1 - O * O - 2 * Oo * Oo,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO ,0,2 * o * O - 2 * oO * Oo,1 - 2 * O * O - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1};
 	glm::mat4 R3 = { 1 - 2 * O * O - 2 * Oo ,2 * o * O + 2 * oO * Oo,2 * o * Oo - 2 * oO * O,0,2 * o * O - 2 * oO * Oo,1 - 2 * o * o - 2 * Oo * Oo,2 * O * Oo + 2 * oO * o,0,2 * o * Oo + 2 * oO * O,2 * O * Oo - 2 * oO * o,1 - 2 * o * o - 2 * O * O,0,0,0,0,1};
-	it->_viewMatrix = R3 * R * R1 * R2;
+	it->mViewMatrix = R3 * R * R1 * R2;
 	if (strafing) {
 		glm::vec3 up = glm::vec3(0, 1, 0);
 		glm::vec3 right = glm::normalize(glm::cross(-i, up));
 		up = glm::normalize(glm::cross(right, -i));
-		it->_strafe += up * float(e) * speed + right * -float(b) * speed;
+		it->mStrafe += up * float(e) * speed + right * -float(b) * speed;
 	}
-	it->_position = it->_position + it->_strafe;
-	it->_viewMatrix = glm::inverse(glm::translate(glm::mat4(1.0f), it->_position) * R);
-	it->_mouseX = x;
-	it->_mouseY = y;
+	it->mPosition = it->mPosition + it->mStrafe;
+	it->mViewMatrix = glm::inverse(glm::translate(glm::mat4(1.0f), it->mPosition) * R);
+	it->mMouseX = x;
+	it->mMouseY = y;
 }
 
 void vklUpdateCamera(VklCameraHandle handle)
@@ -257,6 +256,7 @@ void vklUpdateCamera(VklCameraHandle handle)
 		return;
 	}
 
-	glfwGetCursorPos(it->_window, &it->x, &it->y);
-	vklUpdateCamera(handle, it->x, it->y, mInput1, mInput3, mInput2);
+	double x, y;
+	glfwGetCursorPos(it->mWindow, &x, &y);
+	vklUpdateCamera(handle, x, y, mInput1, mInput3, mInput2);
 }

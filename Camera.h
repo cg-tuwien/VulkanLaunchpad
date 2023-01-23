@@ -13,18 +13,17 @@
 */
 struct VklCamera
 {
-	glm::mat4 _viewMatrix;
-	glm::mat4 _projMatrix;
-	double _mouseX, _mouseY;
-	double x, y;
-	float ooo, ggg;
-	glm::vec3 _position;
-	glm::vec3 _strafe;
-	glm::vec3 ttt;
-	glm::vec3 tt;
-	GLFWwindow* _window;
-	GLFWmousebuttonfun _previousMouseButtonFun;
-	GLFWscrollfun _previousScrollFun;
+	glm::mat4 mViewMatrix;
+	glm::mat4 mProjMatrix;
+	double mMouseX, mMouseY;
+	float mOoo, mGgg;
+	glm::vec3 mPosition;
+	glm::vec3 mStrafe;
+	glm::vec3 mTtt;
+	glm::vec3 mTt;
+	GLFWwindow* mWindow;
+	GLFWmousebuttonfun mPreviousMouseButtonFun;
+	GLFWscrollfun mPreviousScrollFun;
 };
 
 /*!
