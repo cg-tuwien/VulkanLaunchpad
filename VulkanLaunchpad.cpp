@@ -1200,15 +1200,14 @@ double vklWaitForNextSwapchainImage()
 
 	// Just out of curiosity, measure the wait time:
 	auto t0 = glfwGetTime();
+
 	// Wait for the fence of the current image before reusing the same image available semaphore (as we have used #CONCURRENT_FRAMES in the past)
 	vk::Result returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
-	if (returnCode != vk::Result::eSuccess) {
-		VKL_EXIT_WITH_ERROR(std::string("Error while waiting for Fences for Frame" + std::to_string(mFrameInFlightIndex) + ". Error Code : " + to_string(returnCode)));
-	}
+	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
+
 	returnCode = mDevice.resetFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get());
-	if (returnCode != vk::Result::eSuccess) {
-		VKL_EXIT_WITH_ERROR(std::string("Error while resetting Fences for Frame"+ std::to_string(mFrameInFlightIndex) +". Error Code : " + to_string(returnCode)));
-	}
+	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
+
 	// Keep house with the in-flight images:
 	for (auto& mapping : mImagesInFlightFenceIndices) { // However, we don't know which index this fence had been mapped to => we have to search
 		if (mFrameInFlightIndex == mapping) {
@@ -1223,8 +1222,8 @@ double vklWaitForNextSwapchainImage()
 	if (mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] >= 0) {
 		// it is set => must perform an extra wait
 		returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex]].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
+		VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
 		// But do not reset! Otherwise we will wait forever at the next waitForFences that will happen for sure.
-		VKL_EXIT_WITH_ERROR("Error while waiting for Fences for Frame" + std::to_string(mFrameInFlightIndex) + ". Error Code : " + to_string(returnCode));
 	}
 
 	// Submit a "fake" work package to the queue in order to wait for the image to become available before starting to render into it:
@@ -1267,11 +1266,10 @@ void vklPresentCurrentSwapchainImage()
 		.setSwapchainCount(1u)
 		.setPSwapchains(&swapchainHandle)
 		.setPImageIndices(&mCurrentSwapChainImageIndex);
-	vk::Result returnCode;
-	returnCode = mQueue.presentKHR(presentInfo);
-	if (returnCode != vk::Result::eSuccess) {
-		VKL_EXIT_WITH_ERROR("Error while presenting swapchain image with id" + std::to_string(mCurrentSwapChainImageIndex) + ". Error Code : " + to_string(returnCode));
-	}
+	
+	vk::Result returnCode = mQueue.presentKHR(presentInfo);
+	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
+
 	mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] = mFrameInFlightIndex;
 }
 
