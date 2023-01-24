@@ -602,6 +602,14 @@ VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char *file, uint32_t l
  */
 VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char *file, uint32_t face, uint32_t level);
 
-
-
-
+/*!
+ *	Creates a perspective projection matrix which transforms a part of the scene into a unit cube based on the given parameters.
+ *	The scene is assumed to be given in a right-handed coordinate system with its y axis pointing upwards.
+ *	The part of the scene that will end up within the unit cube is located towards the negative z axis.
+ *	@param	field_of_view			The perspective projection's full field of view in radians.
+ *	@param	aspect_ratio			The ratio of the screen's width to its height.
+ *	@param	near_plane_distance		The distance from the camera's origin to the near plane.
+ *	@param	far_plane_distance		The distance from the camera's origin to the far plane.
+ *	@return	A perspective projection matrix based on the given parameters.
+ */
+glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect_ratio, float near_plane_distance, float far_plane_distance);
