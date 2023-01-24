@@ -921,7 +921,7 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	auto surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
 
 	// Get swapchain image extents:
-	if (swapchain_config.imageExtent.width != surfaceCapabilities.currentExtent.width || swapchain_config.imageExtent.width != surfaceCapabilities.currentExtent.width) {
+	if (swapchain_config.imageExtent.width != surfaceCapabilities.currentExtent.width || swapchain_config.imageExtent.height != surfaceCapabilities.currentExtent.height) {
 		std::cout << "WARNING: Swapchain config's extents[" << swapchain_config.imageExtent.width << "x" << swapchain_config.imageExtent.height << "] do not match the surface capabilities' extents[" << surfaceCapabilities.currentExtent.width << "x" << surfaceCapabilities.currentExtent.height << "]" << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";
 	}
 	
@@ -1201,8 +1201,11 @@ double vklWaitForNextSwapchainImage()
 	auto t0 = glfwGetTime();
 
 	// Wait for the fence of the current image before reusing the same image available semaphore (as we have used #CONCURRENT_FRAMES in the past)
-	mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
-	mDevice.resetFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get());
+	vk::Result returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
+	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
+
+	returnCode = mDevice.resetFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get());
+	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
 
 	// Keep house with the in-flight images:
 	for (auto& mapping : mImagesInFlightFenceIndices) { // However, we don't know which index this fence had been mapped to => we have to search
@@ -1217,7 +1220,8 @@ double vklWaitForNextSwapchainImage()
 	// Safety-check on the returned image index:
 	if (mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] >= 0) {
 		// it is set => must perform an extra wait
-		mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex]].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
+		returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex]].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
+		VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
 		// But do not reset! Otherwise we will wait forever at the next waitForFences that will happen for sure.
 	}
 
@@ -1261,7 +1265,9 @@ void vklPresentCurrentSwapchainImage()
 		.setSwapchainCount(1u)
 		.setPSwapchains(&swapchainHandle)
 		.setPImageIndices(&mCurrentSwapChainImageIndex);
-	mQueue.presentKHR(presentInfo);
+	
+	vk::Result returnCode = mQueue.presentKHR(presentInfo);
+	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
 
 	mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] = mFrameInFlightIndex;
 }
@@ -1617,10 +1623,10 @@ VklImageInfo vklGetDdsImageInfo(const char* file)
 VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level)
 {
 #ifdef USE_GLI
-	auto imageFace = static_cast<gli::texture2d::size_type>(face);
-	auto imageLevel = static_cast<gli::texture2d::size_type>(level);
+	auto imageFace = static_cast<gli::texture2d::size_type>(static_cast<size_t>(face));
+	auto imageLevel = static_cast<gli::texture2d::size_type>(static_cast<size_t>(level));
 
-	auto gliTpl = loadDdsImageWithGli(file, imageLevel);
+	auto gliTpl = loadDdsImageWithGli(file, static_cast<uint32_t>(imageLevel));
 	const auto& gliTex = std::get<gli::texture2d>(gliTpl);
 
 	imageLevel = glm::clamp(imageLevel, gliTex.base_level(), gliTex.max_level());
