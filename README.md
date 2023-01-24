@@ -162,8 +162,6 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
 	cmake --build . --config Debug
 ```
 
-
-
 ## Editors and IDEs
 
 ### Visual Studio Code (VS Code)
@@ -178,7 +176,8 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
     - This can be accomplished through `File -> Open Folder...`, you might also get the option to `Open with Code` from a folder's context menu in Windows Explorer.
 - Execute the following commands (either through `Show All Commands`, which can be activated by default via `Ctrl+Shift+P` or `Cmd+Shift+P` (macOS), or you'll also find buttons for these actions at the bottom of the VS Code window):
     - `CMake: Select a Kit` then select, e.g., `Visual Studio Build Tools 2022 Release - amd64` (if you are using Windows and have installed the `Build Tools for Visual Studio 2022`).
-    - `CMake: Select Variant` and select `Debug` for a build with debug information, or `Release` for one without.
+    - `CMake: Select Variant` and select `Debug` for a build with debug information, or `Release` for one without. 
+    - The above command should also trigger CMake's configuration step. If it doesn't, execute `CMake: Configure`!
     - `CMake: Build Target`, then select `VulkanLaunchpad STATIC_LIBRARY` to build Vulkan Launchpad as a static library. Alternatively, just build everything by selecting `ALL_BUILD`.
 
 ### Visual Studio 2022 Community
