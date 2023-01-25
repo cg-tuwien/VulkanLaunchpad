@@ -52,7 +52,6 @@ struct VklSwapchainImageDetails {
     /*! The value that this image shall be cleared to at the beginning of a new frame: */
     VkClearValue clearValue;
 };
-
 /*!
  *	A struct describing the swap chain config in terms of used images.
  *	It can be perfectly valid to have only the colorImageDetails set.
@@ -153,7 +152,7 @@ struct VklGraphicsPipelineConfig {
 };
 
 /*!
- * This struct contains all data for a geometry object to be saved on the CPU-side and sent to the GPU.
+ *  This struct contains all data for a geometry object to be saved on the CPU-side and sent to the GPU.
  */
 struct VklGeometryData {
     //! A vector of vertex positions, required.
@@ -169,7 +168,7 @@ struct VklGeometryData {
 
     //! A vector of vertex texture coordinates, optional.
     /*! If you do not desire to have any texture coordinates for your vertices, leave this vector empty. */
-    std::vector<glm::vec3> textureCoordinates;
+    std::vector<glm::vec2> textureCoordinates;
 };
 
 /*!
@@ -569,7 +568,7 @@ VklImageInfo vklGetDdsImageInfo(const char *file);
  *	@param	level	The mipmap level which info to determine and return.
  *	@return	A struct containing information about the DDS image file.
  */
-VklImageInfo vklGetDdsImageLevelInfo(const char *file, uint32_t level);
+VklImageInfo vklGetDdsImageLevelInfo(const char* file, uint32_t level);
 
 /*!
  *	Loads a DDS image from a file directly into a host-coherent buffer.
@@ -579,7 +578,7 @@ VklImageInfo vklGetDdsImageLevelInfo(const char *file, uint32_t level);
  *	@param	file	Path to a DDS image file
  *	@return	A newly created buffer in host-coherent memory which contains the data of the given DDS image file.
  */
-VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char *file);
+VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file);
 
 /*!
  *	Loads one particular mipmap level of a DDS image from a file directly into a host-coherent buffer.
@@ -590,7 +589,7 @@ VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char *file);
  *	@param	level	The mipmap level which to load into the buffer (i.e., this one and only this one)
  *	@return	A newly created buffer in host-coherent memory which contains the data of the given DDS image file.
  */
-VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char *file, uint32_t level);
+VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t level);
 
 /*!
  *	Loads one particular mipmap level of a particular face of a DDS image from a file directly into a host-coherent buffer.
@@ -601,7 +600,7 @@ VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char *file, uint32_t l
  *	@param	level	The mipmap level which to load into the buffer (i.e., this one and only this one)
  *	@return	A newly created buffer in host-coherent memory which contains the data of the given DDS image file.
  */
-VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char *file, uint32_t face, uint32_t level);
+VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level);
 
 /*!
  *	Creates a perspective projection matrix which transforms a part of the scene into a unit cube based on the given parameters.
@@ -614,3 +613,11 @@ VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char *file, uint32
  *	@return	A perspective projection matrix based on the given parameters.
  */
 glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect_ratio, float near_plane_distance, float far_plane_distance);
+
+/*!
+ *  Loads a .obj model from the specified path and fills a VklGeometryData struct with the vertices, indices, normals and uv coordinates, if any exist.
+ *  @param  path_to_obj    Path to a 3D model in .obj format, the geometry of which shall be loaded into host memory.
+ *	                       Note: the .obj format is the only format that is supported. Trying to load a different 3D model format will fail.  
+ *	@return A struct instance containing all the geometry data of the loaded 3D model 
+ */
+VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj);

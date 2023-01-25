@@ -6,7 +6,8 @@
 #include <vulkan/vulkan.hpp>
 #include <unordered_map>
 #include <deque>
-
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tinyobjloader/tiny_obj_loader.h>
 //#define USE_SHADERC
 #define USE_GLSLANG
 
@@ -1723,7 +1724,7 @@ glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect
 		// We are staying in right-handed (RH) coordinate systems throughout ALL the spaces.
 		// 
 		// Therefore, we are representing the coordinates from here on -- actually exactly BETWEEN View Space and
-		// Clip Space -- in a coordinate system which is rotated 180° around X, having Y point down, still RH.
+		// Clip Space -- in a coordinate system which is rotated 180ï¿½ around X, having Y point down, still RH.
 		const glm::mat4 rotateAroundXFrom_RH_Yup_to_RH_Ydown = glm::mat4{
 			 glm::vec4{ 1.f,  0.f,  0.f,  0.f},
 			-glm::vec4{ 0.f,  1.f,  0.f,  0.f},
@@ -1749,4 +1750,93 @@ glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect
 	m[3][2] = -near_plane_distance * zScale; // ... by this amount
 
 	return m * sInverseRotateAroundXFrom_RH_Yup_to_RH_Ydown;
+}
+
+std::string loadObjectFromFile(const std::string& objectfilename)
+{
+	static const auto dev_objectdir = std::string("assets/objects_vk/");
+	static const auto objectdir = std::string("assets/objects/");
+	enum struct object_load_message_type { info, warning };
+	std::vector<std::tuple<std::string, object_load_message_type>> paths = {
+		std::make_tuple(dev_objectdir + objectfilename, object_load_message_type::warning),
+		std::make_tuple(objectdir + objectfilename,     object_load_message_type::info),
+		std::make_tuple(objectfilename,                 object_load_message_type::info),
+		std::make_tuple(objectdir,                      object_load_message_type::warning),
+	};
+
+	std::string path = {};
+
+	for (const auto& tpl : paths) {
+		// Check if file exists:
+		auto candidate = std::get<0>(tpl);
+		std::ifstream infile(candidate);
+		if (infile.good()) {
+			path = candidate;
+			switch (std::get<1>(tpl)) {
+			case object_load_message_type::info:
+				std::cout << "INFO: Loading object file from path[" << path << "]." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+				break;
+			case object_load_message_type::warning:
+				std::cout << "WARNING: Loading object file from path[" << path << "], consider storing it in the directory[" << objectdir << "]!" << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+				break;
+			default:
+				throw std::runtime_error("invalid object_load_message_type enum value");
+			}
+		}
+		if (!path.empty()) {
+			break;
+		}
+	}
+
+	if (path.empty()) { // Fail if object file could not be found:
+		VKL_EXIT_WITH_ERROR("Unable to load file[" + objectfilename + "].");
+	}
+
+	std::ifstream ifs(path);
+	std::string content(
+		(std::istreambuf_iterator<char>(ifs)),
+		(std::istreambuf_iterator<char>())
+	);
+	return content;
+}
+
+std::size_t checkIndices(int const& vertex, int const& normal, int const& uv) {
+	std::size_t h = 0;
+	h = (h * 37) + std::hash<int>()(vertex);
+	h = (h * 37) + std::hash<int>()(normal);
+	h = (h * 37) + std::hash<int>()(uv);
+	return h;
+}
+
+VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
+{
+	tinyobj::attrib_t attributes;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string warning;
+	std::string error;
+	std::istringstream sourceStream(loadObjectFromFile(path_to_obj));
+	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &warning, &error, &sourceStream))
+	{
+		throw std::runtime_error("ast::assets::loadOBJFile: Error: " + warning + error);
+	}
+	VklGeometryData data;
+	std::unordered_map<std::size_t, uint32_t>uniqueVertices;
+	for (tinyobj::shape_t shape : shapes) {
+		for (const auto& index : shape.mesh.indices) {
+			glm::vec3 pos = glm::vec3(attributes.vertices[3 * index.vertex_index], attributes.vertices[3 * index.vertex_index + 1], attributes.vertices[3 * index.vertex_index + 2]);
+			glm::vec2 uv = glm::vec2(attributes.texcoords[2 * index.texcoord_index], 1.0f - attributes.texcoords[2 * index.texcoord_index + 1]);
+			glm::vec3 normal = glm::vec3(attributes.normals[3 * index.normal_index], attributes.normals[3 * index.normal_index + 1], attributes.normals[3 * index.normal_index + 2]);
+			std::size_t hash = checkIndices(index.vertex_index, index.normal_index, index.texcoord_index);
+			if (uniqueVertices.count(hash) == 0) {
+				uniqueVertices[hash] = static_cast<uint32_t>(data.positions.size());
+				data.positions.push_back(pos);
+				data.textureCoordinates.push_back(uv);
+				data.normals.push_back(normal);
+			}
+			data.indices.push_back(uniqueVertices[hash]);
+
+		}
+	}
+	return data;
 }
