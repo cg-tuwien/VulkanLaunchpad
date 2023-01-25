@@ -19,16 +19,22 @@
 // Returns a string describing the given VkResult value
 extern const char *to_string(VkResult result);
 
-#define __FILENAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+#ifdef _WIN32
+#define VKL_PATH_SEPARATOR '\\'
+#else
+#define VKL_PATH_SEPARATOR '/'
+#endif
 
-#define VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM " (in " << __FILENAME__ << " at line #" << __LINE__ << ")"
+#define VKL_FILENAME (strrchr(__FILE__, VKL_PATH_SEPARATOR) ? strrchr(__FILE__, VKL_PATH_SEPARATOR) + 1 : __FILE__)
+
+#define VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM " (in " << VKL_FILENAME << " at line #" << __LINE__ << ")"
 
 #define VKL_LOG(log) do { std::cout << "LOG:   " << log << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } while(false)
 
 #define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR: " << err << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); std::stringstream ss; ss << err; throw std::runtime_error(ss.str()); } while(false)
 
 // Evaluates a VkResult and displays its status:
-#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << " (in " << __FILENAME__ << " at line #" << __LINE__ << ")" << std::endl; } else { std::cout << "CHECK: Vulkan operation returned status code: " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
+#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } else { std::cout << "CHECK: Vulkan operation returned status code: " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
 
 // Evaluates a VkResult and displays its status only if it represents an error:
 #define VKL_CHECK_VULKAN_ERROR(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } } while(false)
