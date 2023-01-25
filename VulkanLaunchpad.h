@@ -1,21 +1,20 @@
 /*
- * Copyright 2021 TU Wien, Institute of Visual Computing & Human-Centered Technology.
- *
- * Original version created by Lukas Gersthofer and Bernhard Steiner.
- * Vulkan edition created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at).
+ * Copyright (c) 2022 TU Wien, Institute of Visual Computing & Human-Centered Technology.
+ * Created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at, https://johannesugb.github.io).
  */
 #pragma once
 
 #include <iostream>
 #include <memory>
 #include <cstring>
+#include <vector>
+#include <sstream>
 
 #define GLFW_INCLUDE_VULKAN
 
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
-#include <vector>
 
 // Returns a string describing the given VkResult value
 extern const char *to_string(VkResult result);
@@ -24,10 +23,12 @@ extern const char *to_string(VkResult result);
 
 #define VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM " (in " << __FILENAME__ << " at line #" << __LINE__ << ")"
 
-#define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR: " << (err) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); throw std::runtime_error((err)); } while(false)
+#define VKL_LOG(log) do { std::cout << "LOG:   " << log << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } while(false)
+
+#define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR: " << err << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); std::stringstream ss; ss << err; throw std::runtime_error(ss.str()); } while(false)
 
 // Evaluates a VkResult and displays its status:
-#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << " (in " << __FILENAME__ << " at line #" << __LINE__ << ")" << std::endl; } else { std::cout << "INFO:  Vulkan operation returned status code: " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
+#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << " (in " << __FILENAME__ << " at line #" << __LINE__ << ")" << std::endl; } else { std::cout << "CHECK: Vulkan operation returned status code: " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
 
 // Evaluates a VkResult and displays its status only if it represents an error:
 #define VKL_CHECK_VULKAN_ERROR(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } } while(false)

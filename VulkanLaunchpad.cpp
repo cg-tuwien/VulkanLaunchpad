@@ -1,8 +1,6 @@
 /*
- * Copyright 2021 TU Wien, Institute of Visual Computing & Human-Centered Technology.
- *
- * Original version created by Lukas Gersthofer and Bernhard Steiner.
- * Vulkan edition created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at).
+ * Copyright (c) 2022 TU Wien, Institute of Visual Computing & Human-Centered Technology.
+ * Created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at, https://johannesugb.github.io).
  */
 #include "VulkanLaunchpad.h"
 #include <vulkan/vulkan.hpp>

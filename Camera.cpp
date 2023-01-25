@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 TU Wien, Institute of Visual Computing & Human-Centered Technology.
+ * Copyright (c) 2022 TU Wien, Institute of Visual Computing & Human-Centered Technology.
  */
 #include "Camera.h"
 #include <glm/gtx/quaternion.hpp>
