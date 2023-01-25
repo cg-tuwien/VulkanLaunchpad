@@ -1,20 +1,20 @@
 /*
- * Copyright 2021 TU Wien, Institute of Visual Computing & Human-Centered Technology.
- *
- * Original version created by Lukas Gersthofer and Bernhard Steiner.
- * Vulkan edition created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at).
+ * Copyright (c) 2022 TU Wien, Institute of Visual Computing & Human-Centered Technology.
+ * Created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at, https://johannesugb.github.io).
  */
 #pragma once
 
 #include <iostream>
 #include <memory>
+#include <cstring>
+#include <vector>
+#include <sstream>
 
 #define GLFW_INCLUDE_VULKAN
 
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
-#include <vector>
 
 // Returns a string describing the given VkResult value
 extern const char *to_string(VkResult result);
@@ -23,10 +23,12 @@ extern const char *to_string(VkResult result);
 
 #define VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM " (in " << __FILENAME__ << " at line #" << __LINE__ << ")"
 
-#define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR: " << (err) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); throw std::runtime_error((err)); } while(false)
+#define VKL_LOG(log) do { std::cout << "LOG:   " << log << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } while(false)
+
+#define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR: " << err << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); std::stringstream ss; ss << err; throw std::runtime_error(ss.str()); } while(false)
 
 // Evaluates a VkResult and displays its status:
-#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << " (in " << __FILENAME__ << " at line #" << __LINE__ << ")" << std::endl; } else { std::cout << "INFO:  Vulkan operation returned status code: " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
+#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << " (in " << __FILENAME__ << " at line #" << __LINE__ << ")" << std::endl; } else { std::cout << "CHECK: Vulkan operation returned status code: " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
 
 // Evaluates a VkResult and displays its status only if it represents an error:
 #define VKL_CHECK_VULKAN_ERROR(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } } while(false)
@@ -150,7 +152,7 @@ struct VklGraphicsPipelineConfig {
 };
 
 /*!
- * This struct contains all data for a geometry object to be saved on the CPU-side and sent to the GPU.
+ *  This struct contains all data for a geometry object to be saved on the CPU-side and sent to the GPU.
  */
 struct VklGeometryData {
     //! A vector of vertex positions, required.
@@ -556,7 +558,7 @@ struct VklImageInfo {
  *	@param	file	Path to a DDS image file
  *	@return	A struct containing information about the DDS image file.
  */
-VklImageInfo vklGetDdsImageInfo(const char *file);
+VklImageInfo vklGetDdsImageInfo(const char* file);
 
 /*!
  *	Determines image information about a specific mipmap level of
@@ -566,7 +568,7 @@ VklImageInfo vklGetDdsImageInfo(const char *file);
  *	@param	level	The mipmap level which info to determine and return.
  *	@return	A struct containing information about the DDS image file.
  */
-VklImageInfo vklGetDdsImageLevelInfo(const char *file, uint32_t level);
+VklImageInfo vklGetDdsImageLevelInfo(const char* file, uint32_t level);
 
 /*!
  *	Loads a DDS image from a file directly into a host-coherent buffer.
@@ -576,7 +578,7 @@ VklImageInfo vklGetDdsImageLevelInfo(const char *file, uint32_t level);
  *	@param	file	Path to a DDS image file
  *	@return	A newly created buffer in host-coherent memory which contains the data of the given DDS image file.
  */
-VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char *file);
+VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file);
 
 /*!
  *	Loads one particular mipmap level of a DDS image from a file directly into a host-coherent buffer.
@@ -587,7 +589,7 @@ VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char *file);
  *	@param	level	The mipmap level which to load into the buffer (i.e., this one and only this one)
  *	@return	A newly created buffer in host-coherent memory which contains the data of the given DDS image file.
  */
-VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char *file, uint32_t level);
+VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t level);
 
 /*!
  *	Loads one particular mipmap level of a particular face of a DDS image from a file directly into a host-coherent buffer.
@@ -598,12 +600,24 @@ VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char *file, uint32_t l
  *	@param	level	The mipmap level which to load into the buffer (i.e., this one and only this one)
  *	@return	A newly created buffer in host-coherent memory which contains the data of the given DDS image file.
  */
-VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char *file, uint32_t face, uint32_t level);
+VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level);
 
 /*!
-*Loads a .obj model from the specified path and fills a VklGeometryData struct with the vertices, indices, normals and uv coordinates, if any exist.
-* 
-* @param file Path to a .obj model
-*/
-VklGeometryData vklLoadModelGeometry(const std::string& file);
+ *	Creates a perspective projection matrix which transforms a part of the scene into a unit cube based on the given parameters.
+ *	The scene is assumed to be given in a right-handed coordinate system with its y axis pointing upwards.
+ *	The part of the scene that will end up within the unit cube is located towards the negative z axis.
+ *	@param	field_of_view			The perspective projection's full field of view in radians.
+ *	@param	aspect_ratio			The ratio of the screen's width to its height.
+ *	@param	near_plane_distance		The distance from the camera's origin to the near plane.
+ *	@param	far_plane_distance		The distance from the camera's origin to the far plane.
+ *	@return	A perspective projection matrix based on the given parameters.
+ */
 
+glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect_ratio, float near_plane_distance, float far_plane_distance);
+/*!
+ *  Loads a .obj model from the specified path and fills a VklGeometryData struct with the vertices, indices, normals and uv coordinates, if any exist.
+ *  @param  pathToObj    Path to a 3D model in .obj format, the geometry of which shall be loaded into host memory.
+ *	                     Note: the .obj format is the only format that is supported. Trying to load a different 3D model format will fail.  
+ *	@return A struct instance containing all the geometry data of the loaded 3D model 
+ */
+VklGeometryData vklLoadModelGeometry(const std::string& pathToObj);

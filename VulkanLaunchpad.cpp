@@ -1,9 +1,6 @@
-#pragma comment(user,"file exists since step=0")
 /*
- * Copyright 2021 TU Wien, Institute of Visual Computing & Human-Centered Technology.
- *
- * Original version created by Lukas Gersthofer and Bernhard Steiner.
- * Vulkan edition created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at).
+ * Copyright (c) 2022 TU Wien, Institute of Visual Computing & Human-Centered Technology.
+ * Created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at, https://johannesugb.github.io).
  */
 #include "VulkanLaunchpad.h"
 #include <vulkan/vulkan.hpp>
@@ -310,6 +307,15 @@ glslang_resource_t get_default_resource() {
 		/* .maxTaskWorkGroupSizeY_NV = */ 1,
 		/* .maxTaskWorkGroupSizeZ_NV = */ 1,
 		/* .maxMeshViewCountNV = */ 4,
+		/* .maxMeshOutputVerticesEXT = */ 256,
+		/* .maxMeshOutputPrimitivesEXT = */ 256,
+		/* .maxMeshWorkGroupSizeX_EXT = */ 128,
+		/* .maxMeshWorkGroupSizeY_EXT = */ 128,
+		/* .maxMeshWorkGroupSizeZ_EXT = */ 128,
+		/* .maxTaskWorkGroupSizeX_EXT = */ 128,
+		/* .maxTaskWorkGroupSizeY_EXT = */ 128,
+		/* .maxTaskWorkGroupSizeZ_EXT = */ 128,
+		/* .maxMeshViewCountEXT = */ 4,
 		/* .maxDualSourceDrawBuffersEXT = */ 1,
 
 		/* .limits = */ {
@@ -322,7 +328,7 @@ glslang_resource_t get_default_resource() {
 			/* .generalSamplerIndexing = */ 1,
 			/* .generalVariableIndexing = */ 1,
 			/* .generalConstantMatrixVectorIndexing = */ 1,
-			}
+		}
 	};
 	return r;
 }
@@ -914,7 +920,7 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	auto surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
 
 	// Get swapchain image extents:
-	if (swapchain_config.imageExtent.width != surfaceCapabilities.currentExtent.width || swapchain_config.imageExtent.width != surfaceCapabilities.currentExtent.width) {
+	if (swapchain_config.imageExtent.width != surfaceCapabilities.currentExtent.width || swapchain_config.imageExtent.height != surfaceCapabilities.currentExtent.height) {
 		std::cout << "WARNING: Swapchain config's extents[" << swapchain_config.imageExtent.width << "x" << swapchain_config.imageExtent.height << "] do not match the surface capabilities' extents[" << surfaceCapabilities.currentExtent.width << "x" << surfaceCapabilities.currentExtent.height << "]" << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";
 	}
 	
@@ -1194,8 +1200,11 @@ double vklWaitForNextSwapchainImage()
 	auto t0 = glfwGetTime();
 
 	// Wait for the fence of the current image before reusing the same image available semaphore (as we have used #CONCURRENT_FRAMES in the past)
-	mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
-	mDevice.resetFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get());
+	vk::Result returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
+	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
+
+	returnCode = mDevice.resetFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get());
+	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
 
 	// Keep house with the in-flight images:
 	for (auto& mapping : mImagesInFlightFenceIndices) { // However, we don't know which index this fence had been mapped to => we have to search
@@ -1210,7 +1219,8 @@ double vklWaitForNextSwapchainImage()
 	// Safety-check on the returned image index:
 	if (mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] >= 0) {
 		// it is set => must perform an extra wait
-		mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex]].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
+		returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex]].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
+		VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
 		// But do not reset! Otherwise we will wait forever at the next waitForFences that will happen for sure.
 	}
 
@@ -1254,7 +1264,9 @@ void vklPresentCurrentSwapchainImage()
 		.setSwapchainCount(1u)
 		.setPSwapchains(&swapchainHandle)
 		.setPImageIndices(&mCurrentSwapChainImageIndex);
-	mQueue.presentKHR(presentInfo);
+	
+	vk::Result returnCode = mQueue.presentKHR(presentInfo);
+	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
 
 	mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] = mFrameInFlightIndex;
 }
@@ -1610,10 +1622,10 @@ VklImageInfo vklGetDdsImageInfo(const char* file)
 VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level)
 {
 #ifdef USE_GLI
-	auto imageFace = static_cast<gli::texture2d::size_type>(face);
-	auto imageLevel = static_cast<gli::texture2d::size_type>(level);
+	auto imageFace = static_cast<gli::texture2d::size_type>(static_cast<size_t>(face));
+	auto imageLevel = static_cast<gli::texture2d::size_type>(static_cast<size_t>(level));
 
-	auto gliTpl = loadDdsImageWithGli(file, imageLevel);
+	auto gliTpl = loadDdsImageWithGli(file, static_cast<uint32_t>(imageLevel));
 	const auto& gliTex = std::get<gli::texture2d>(gliTpl);
 
 	imageLevel = glm::clamp(imageLevel, gliTex.base_level(), gliTex.max_level());
@@ -1704,7 +1716,44 @@ VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file)
 	return vklLoadDdsImageLevelIntoHostCoherentBuffer(file, 0u);
 }
 
-std::string loadObjectFromFile(const std::string& objectfilename){
+glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect_ratio, float near_plane_distance, float far_plane_distance)
+{
+	static const glm::mat4 sInverseRotateAroundXFrom_RH_Yup_to_RH_Ydown = std::invoke([]() {
+		// We assume all the spaces up to and including view space to feature a Y-axis pointing upwards.
+		// Screen space in Vulkan, however, has the +Y-axis pointing downwards, +X to the left, and +Z into the screen.
+		// We are staying in right-handed (RH) coordinate systems throughout ALL the spaces.
+		// 
+		// Therefore, we are representing the coordinates from here on -- actually exactly BETWEEN View Space and
+		// Clip Space -- in a coordinate system which is rotated 180° around X, having Y point down, still RH.
+		const glm::mat4 rotateAroundXFrom_RH_Yup_to_RH_Ydown = glm::mat4{
+			 glm::vec4{ 1.f,  0.f,  0.f,  0.f},
+			-glm::vec4{ 0.f,  1.f,  0.f,  0.f},
+			-glm::vec4{ 0.f,  0.f,  1.f,  0.f},
+			 glm::vec4{ 0.f,  0.f,  0.f,  1.f},
+		};
+
+		// ...in order to represent coordinates in that aforementioned space, we need the inverse, u know:
+		return glm::inverse(rotateAroundXFrom_RH_Yup_to_RH_Ydown);
+	});
+
+	// Scaling factor for the x and y coordinates which depends on the 
+	// field of view (and the aspect ratio... see matrix construction)
+	auto xyScale = 1.0f / glm::tan(field_of_view / 2.f);
+	auto F_N = far_plane_distance - near_plane_distance;
+	auto zScale = far_plane_distance / F_N;
+
+	glm::mat4 m(0.0f);
+	m[0][0] = xyScale / aspect_ratio;
+	m[1][1] = xyScale;
+	m[2][2] = zScale;
+	m[2][3] = 1.f; // Offset z...
+	m[3][2] = -near_plane_distance * zScale; // ... by this amount
+
+	return m * sInverseRotateAroundXFrom_RH_Yup_to_RH_Ydown;
+}
+
+std::string loadObjectFromFile(const std::string& objectfilename)
+{
 	static const auto dev_objectdir = std::string("assets/objects_vk/");
 	static const auto objectdir = std::string("assets/objects/");
 	enum struct object_load_message_type { info, warning };
@@ -1744,10 +1793,11 @@ std::string loadObjectFromFile(const std::string& objectfilename){
 	}
 
 	std::ifstream ifs(path);
-	std::string content((std::istreambuf_iterator<char>(ifs)),
-		(std::istreambuf_iterator<char>()));
+	std::string content(
+		(std::istreambuf_iterator<char>(ifs)),
+		(std::istreambuf_iterator<char>())
+	);
 	return content;
-
 }
 
 std::size_t checkIndices(int const& vertex, int const& normal, int const& uv) {
@@ -1758,14 +1808,14 @@ std::size_t checkIndices(int const& vertex, int const& normal, int const& uv) {
 	return h;
 }
 
-VklGeometryData vklLoadModelGeometry(const std::string& inputFilename)
+VklGeometryData vklLoadModelGeometry(const std::string& pathToObj)
 {
 	tinyobj::attrib_t attributes;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
 	std::string warning;
 	std::string error;
-	std::istringstream sourceStream(loadObjectFromFile(inputFilename));
+	std::istringstream sourceStream(loadObjectFromFile(pathToObj));
 	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &warning, &error, &sourceStream))
 	{
 		throw std::runtime_error("ast::assets::loadOBJFile: Error: " + warning + error);
