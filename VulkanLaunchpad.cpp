@@ -486,14 +486,14 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromMe
 	case vk::ShaderStageFlagBits::eGeometry: glslangStage = GLSLANG_STAGE_GEOMETRY; break;
 	case vk::ShaderStageFlagBits::eFragment: glslangStage = GLSLANG_STAGE_FRAGMENT; break;
 	case vk::ShaderStageFlagBits::eCompute: glslangStage = GLSLANG_STAGE_COMPUTE; break;
-	case vk::ShaderStageFlagBits::eRaygenKHR: glslangStage = GLSLANG_STAGE_RAYGEN_NV; break;
-	case vk::ShaderStageFlagBits::eAnyHitKHR: glslangStage = GLSLANG_STAGE_ANYHIT_NV; break;
-	case vk::ShaderStageFlagBits::eClosestHitKHR: glslangStage = GLSLANG_STAGE_CLOSESTHIT_NV; break;
-	case vk::ShaderStageFlagBits::eMissKHR: glslangStage = GLSLANG_STAGE_MISS_NV; break;
-	case vk::ShaderStageFlagBits::eIntersectionKHR: glslangStage = GLSLANG_STAGE_INTERSECT_NV; break;
-	case vk::ShaderStageFlagBits::eCallableKHR: glslangStage = GLSLANG_STAGE_CALLABLE_NV; break;
-	case vk::ShaderStageFlagBits::eTaskNV: glslangStage = GLSLANG_STAGE_TASK_NV; break;
-	case vk::ShaderStageFlagBits::eMeshNV: glslangStage = GLSLANG_STAGE_MESH_NV; break;
+	case vk::ShaderStageFlagBits::eRaygenKHR: glslangStage = GLSLANG_STAGE_RAYGEN; break;
+	case vk::ShaderStageFlagBits::eAnyHitKHR: glslangStage = GLSLANG_STAGE_ANYHIT; break;
+	case vk::ShaderStageFlagBits::eClosestHitKHR: glslangStage = GLSLANG_STAGE_CLOSESTHIT; break;
+	case vk::ShaderStageFlagBits::eMissKHR: glslangStage = GLSLANG_STAGE_MISS; break;
+	case vk::ShaderStageFlagBits::eIntersectionKHR: glslangStage = GLSLANG_STAGE_INTERSECT; break;
+	case vk::ShaderStageFlagBits::eCallableKHR: glslangStage = GLSLANG_STAGE_CALLABLE; break;
+	case vk::ShaderStageFlagBits::eTaskNV: glslangStage = GLSLANG_STAGE_TASK; break;
+	case vk::ShaderStageFlagBits::eMeshNV: glslangStage = GLSLANG_STAGE_MESH; break;
 	}
 	auto spirv = compileShaderSourceToSpirv(shaderCode, shaderName, glslangStage);
 #endif
@@ -503,38 +503,12 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromMe
 
 std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromFileAndCreateShaderModuleAndStageInfo(const std::string& shaderfilename, const vk::ShaderStageFlagBits shaderStage)
 {
-	static const auto dev_shaderdir = std::string("assets/shaders_vk/");
-	static const auto shaderdir = std::string("assets/shaders/");
-	enum struct shader_load_message_type { info, warning };
-	std::vector<std::tuple<std::string, shader_load_message_type>> paths = {
-		std::make_tuple(dev_shaderdir + shaderfilename, shader_load_message_type::warning),
-		std::make_tuple(shaderdir + shaderfilename,     shader_load_message_type::info),
-		std::make_tuple(shaderfilename,                 shader_load_message_type::info),
-		std::make_tuple(shaderdir,                      shader_load_message_type::warning),
-	};
-
     std::string path = {};
 
-	for (const auto& tpl : paths) {
-		// Check if file exists:
-		auto candidate = std::get<0>(tpl);
-		std::ifstream infile(candidate);
-		if (infile.good()) {
-			path = candidate;
-			switch (std::get<1>(tpl)) {
-			case shader_load_message_type::info:
-				std::cout << "INFO: Loading shader file from path[" << path << "]." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
-				break;
-			case shader_load_message_type::warning:
-				std::cout << "WARNING: Loading shader file from path[" << path << "], consider storing it in the directory[" << shaderdir << "]!" << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
-				break;
-			default: 
-				throw std::runtime_error("invalid shader_load_message_type enum value");
-			}
-		}
-		if (!path.empty()) {
-			break;
-		}
+	std::ifstream infile(shaderfilename);
+	if (infile.good()) {
+		path = shaderfilename;
+		std::cout << "INFO: Loading shader file from path[" << path << "]." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
 	}
 
 	if (path.empty()) { // Fail if shader file could not be found:
