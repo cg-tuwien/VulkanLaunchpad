@@ -486,14 +486,14 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromMe
 	case vk::ShaderStageFlagBits::eGeometry: glslangStage = GLSLANG_STAGE_GEOMETRY; break;
 	case vk::ShaderStageFlagBits::eFragment: glslangStage = GLSLANG_STAGE_FRAGMENT; break;
 	case vk::ShaderStageFlagBits::eCompute: glslangStage = GLSLANG_STAGE_COMPUTE; break;
-	case vk::ShaderStageFlagBits::eRaygenKHR: glslangStage = GLSLANG_STAGE_RAYGEN_NV; break;
-	case vk::ShaderStageFlagBits::eAnyHitKHR: glslangStage = GLSLANG_STAGE_ANYHIT_NV; break;
-	case vk::ShaderStageFlagBits::eClosestHitKHR: glslangStage = GLSLANG_STAGE_CLOSESTHIT_NV; break;
-	case vk::ShaderStageFlagBits::eMissKHR: glslangStage = GLSLANG_STAGE_MISS_NV; break;
-	case vk::ShaderStageFlagBits::eIntersectionKHR: glslangStage = GLSLANG_STAGE_INTERSECT_NV; break;
-	case vk::ShaderStageFlagBits::eCallableKHR: glslangStage = GLSLANG_STAGE_CALLABLE_NV; break;
-	case vk::ShaderStageFlagBits::eTaskNV: glslangStage = GLSLANG_STAGE_TASK_NV; break;
-	case vk::ShaderStageFlagBits::eMeshNV: glslangStage = GLSLANG_STAGE_MESH_NV; break;
+	case vk::ShaderStageFlagBits::eRaygenKHR: glslangStage = GLSLANG_STAGE_RAYGEN; break;
+	case vk::ShaderStageFlagBits::eAnyHitKHR: glslangStage = GLSLANG_STAGE_ANYHIT; break;
+	case vk::ShaderStageFlagBits::eClosestHitKHR: glslangStage = GLSLANG_STAGE_CLOSESTHIT; break;
+	case vk::ShaderStageFlagBits::eMissKHR: glslangStage = GLSLANG_STAGE_MISS; break;
+	case vk::ShaderStageFlagBits::eIntersectionKHR: glslangStage = GLSLANG_STAGE_INTERSECT; break;
+	case vk::ShaderStageFlagBits::eCallableKHR: glslangStage = GLSLANG_STAGE_CALLABLE; break;
+	case vk::ShaderStageFlagBits::eTaskNV: glslangStage = GLSLANG_STAGE_TASK; break;
+	case vk::ShaderStageFlagBits::eMeshNV: glslangStage = GLSLANG_STAGE_MESH; break;
 	}
 	auto spirv = compileShaderSourceToSpirv(shaderCode, shaderName, glslangStage);
 #endif
@@ -501,49 +501,25 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromMe
 	return loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(spirv.data(), spirv.size() * sizeof(decltype(spirv)::value_type), shaderStage);
 }
 
-std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromFileAndCreateShaderModuleAndStageInfo(const std::string& shaderfilename, const vk::ShaderStageFlagBits shaderStage)
+std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromFileAndCreateShaderModuleAndStageInfo(const std::string& shader_filename, const vk::ShaderStageFlagBits shaderStage)
 {
-	static const auto dev_shaderdir = std::string("assets/shaders_vk/");
-	static const auto shaderdir = std::string("assets/shaders/");
-	enum struct shader_load_message_type { info, warning };
-	std::vector<std::tuple<std::string, shader_load_message_type>> paths = {
-		std::make_tuple(dev_shaderdir + shaderfilename, shader_load_message_type::warning),
-		std::make_tuple(shaderdir + shaderfilename,     shader_load_message_type::info),
-		std::make_tuple(shaderfilename,                 shader_load_message_type::info),
-		std::make_tuple(shaderdir,                      shader_load_message_type::warning),
-	};
-
     std::string path = {};
 
-	for (const auto& tpl : paths) {
-		// Check if file exists:
-		auto candidate = std::get<0>(tpl);
-		std::ifstream infile(candidate);
-		if (infile.good()) {
-			path = candidate;
-			switch (std::get<1>(tpl)) {
-			case shader_load_message_type::info:
-				std::cout << "INFO: Loading shader file from path[" << path << "]." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
-				break;
-			case shader_load_message_type::warning:
-				std::cout << "WARNING: Loading shader file from path[" << path << "], consider storing it in the directory[" << shaderdir << "]!" << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
-				break;
-			default: 
-				throw std::runtime_error("invalid shader_load_message_type enum value");
-			}
-		}
-		if (!path.empty()) {
-			break;
-		}
+	std::ifstream infile(shader_filename);
+	if (infile.good()) {
+		path = shader_filename;
+		VKL_LOG("Loading shader file from path[" << path << "].");
 	}
 
 	if (path.empty()) { // Fail if shader file could not be found:
-		VKL_EXIT_WITH_ERROR("Unable to load file[" + shaderfilename + "].");
+		VKL_EXIT_WITH_ERROR("Unable to load file[" << shader_filename << "].");
 	}
 
 	std::ifstream ifs(path);
-	std::string content((std::istreambuf_iterator<char>(ifs)),
-		(std::istreambuf_iterator<char>()));
+	std::string content(
+		(std::istreambuf_iterator<char>(ifs)),
+		(std::istreambuf_iterator<char>())
+	);
 
 	return loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(content, path, shaderStage);
 }
@@ -745,7 +721,7 @@ void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer)
 		mHostCoherentBuffersWithBackingMemory.erase(search);
 	}
 	else {
-		std::cout << "WARNING: VkDeviceMemory for the given VkBuffer not found. Are you sure that you have created this buffer with vklCreateHostCoherentBufferWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkBuffer?" << std::endl;
+		VKL_WARNING("VkDeviceMemory for the given VkBuffer not found. Are you sure that you have created this buffer with vklCreateHostCoherentBufferWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkBuffer?");
 	}
 
 	mDevice.destroy(vk::Buffer{ buffer });
@@ -767,8 +743,7 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
 
 	auto search = mHostCoherentBuffersWithBackingMemory.find(buffer);
 	if (mHostCoherentBuffersWithBackingMemory.end() == search) {
-		std::cout << "ERROR:   Couldn't find backing memory for the given VkBuffer => Can't copy data. Have you created the buffer via vklCreateHostCoherentBufferWithBackingMemory(...)?" << std::endl;
-		return;
+		VKL_EXIT_WITH_ERROR("Couldn't find backing memory for the given VkBuffer => Can't copy data. Have you created the buffer via vklCreateHostCoherentBufferWithBackingMemory(...)?");
 	}
 
 	uint8_t* mappedMemory = static_cast<uint8_t*>(mDevice.mapMemory(search->second.get(), 0, static_cast<vk::DeviceSize>(data_size_in_bytes)));
@@ -1462,7 +1437,7 @@ void vklDestroyImageAndItsBackingMemory(VkImage image)
 		mImagesWithBackingMemory.erase(search);
 	}
 	else {
-		std::cout << "WARNING: VkDeviceMemory for the given VkImage not found. Are you sure that you have created this buffer with vklCreateImageWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkImage?" << std::endl;
+		VKL_WARNING("VkDeviceMemory for the given VkImage not found. Are you sure that you have created this buffer with vklCreateImageWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkImage?");
 	}
 
 	mDevice.destroy(vk::Image{ image });
@@ -1752,44 +1727,18 @@ glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect
 	return m * sInverseRotateAroundXFrom_RH_Yup_to_RH_Ydown;
 }
 
-std::string loadObjectFromFile(const std::string& objectfilename)
+std::string loadModelFromFile(const std::string& model_filename)
 {
-	static const auto dev_objectdir = std::string("assets/objects_vk/");
-	static const auto objectdir = std::string("assets/objects/");
-	enum struct object_load_message_type { info, warning };
-	std::vector<std::tuple<std::string, object_load_message_type>> paths = {
-		std::make_tuple(dev_objectdir + objectfilename, object_load_message_type::warning),
-		std::make_tuple(objectdir + objectfilename,     object_load_message_type::info),
-		std::make_tuple(objectfilename,                 object_load_message_type::info),
-		std::make_tuple(objectdir,                      object_load_message_type::warning),
-	};
+    std::string path = {};
 
-	std::string path = {};
-
-	for (const auto& tpl : paths) {
-		// Check if file exists:
-		auto candidate = std::get<0>(tpl);
-		std::ifstream infile(candidate);
-		if (infile.good()) {
-			path = candidate;
-			switch (std::get<1>(tpl)) {
-			case object_load_message_type::info:
-				std::cout << "INFO: Loading object file from path[" << path << "]." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
-				break;
-			case object_load_message_type::warning:
-				std::cout << "WARNING: Loading object file from path[" << path << "], consider storing it in the directory[" << objectdir << "]!" << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
-				break;
-			default:
-				throw std::runtime_error("invalid object_load_message_type enum value");
-			}
-		}
-		if (!path.empty()) {
-			break;
-		}
+	std::ifstream infile(model_filename);
+	if (infile.good()) {
+		path = model_filename;
+		VKL_LOG("Loading 3D model file from path[" << path << "].");
 	}
 
-	if (path.empty()) { // Fail if object file could not be found:
-		VKL_EXIT_WITH_ERROR("Unable to load file[" + objectfilename + "].");
+	if (path.empty()) { // Fail if model file could not be found:
+		VKL_EXIT_WITH_ERROR("Unable to load file[" << model_filename << "].");
 	}
 
 	std::ifstream ifs(path);
@@ -1815,19 +1764,31 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 	std::vector<tinyobj::material_t> materials;
 	std::string warning;
 	std::string error;
-	std::istringstream sourceStream(loadObjectFromFile(path_to_obj));
-	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &warning, &error, &sourceStream))
-	{
-		throw std::runtime_error("ast::assets::loadOBJFile: Error: " + warning + error);
+	std::istringstream sourceStream(loadModelFromFile(path_to_obj));
+	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &warning, &error, &sourceStream)) {
+		VKL_EXIT_WITH_ERROR("Failed attempt to load model in OBJ format from [" << path_to_obj << "]. Warning[" << warning << "], Error[" << error << "]");
 	}
+
 	VklGeometryData data;
-	std::unordered_map<std::size_t, uint32_t>uniqueVertices;
-	for (tinyobj::shape_t shape : shapes) {
-		for (const auto& index : shape.mesh.indices) {
-			glm::vec3 pos = glm::vec3(attributes.vertices[3 * index.vertex_index], attributes.vertices[3 * index.vertex_index + 1], attributes.vertices[3 * index.vertex_index + 2]);
-			glm::vec2 uv = glm::vec2(attributes.texcoords[2 * index.texcoord_index], 1.0f - attributes.texcoords[2 * index.texcoord_index + 1]);
-			glm::vec3 normal = glm::vec3(attributes.normals[3 * index.normal_index], attributes.normals[3 * index.normal_index + 1], attributes.normals[3 * index.normal_index + 2]);
-			std::size_t hash = checkIndices(index.vertex_index, index.normal_index, index.texcoord_index);
+	std::unordered_map<std::size_t, uint32_t> uniqueVertices;
+	for (const tinyobj::shape_t& shape : shapes) {
+		for (const auto& indices : shape.mesh.indices) {
+			glm::vec3 pos = glm::vec3(
+				attributes.vertices[3 * indices.vertex_index], 
+				attributes.vertices[3 * indices.vertex_index + 1], 
+				attributes.vertices[3 * indices.vertex_index + 2]
+			);
+			glm::vec2 uv = glm::vec2(
+				attributes.texcoords[2 * indices.texcoord_index], 
+				1.0f - attributes.texcoords[2 * indices.texcoord_index + 1]
+			);
+			glm::vec3 normal = glm::vec3(
+				attributes.normals[3 * indices.normal_index], 
+				attributes.normals[3 * indices.normal_index + 1], 
+				attributes.normals[3 * indices.normal_index + 2]
+			);
+
+			std::size_t hash = checkIndices(indices.vertex_index, indices.normal_index, indices.texcoord_index);
 			if (uniqueVertices.count(hash) == 0) {
 				uniqueVertices[hash] = static_cast<uint32_t>(data.positions.size());
 				data.positions.push_back(pos);
@@ -1835,7 +1796,6 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 				data.normals.push_back(normal);
 			}
 			data.indices.push_back(uniqueVertices[hash]);
-
 		}
 	}
 	return data;
