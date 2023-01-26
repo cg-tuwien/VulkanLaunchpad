@@ -1820,19 +1820,3 @@ glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect
 
 	return m * sInverseRotateAroundXFrom_RH_Yup_to_RH_Ydown;
 }
-
-void vklCopyHostCoherentBufferIntoDeviceBuffer(VkBuffer host_Buffer,VkBuffer device_Buffer, size_t data_size_in_bytes) {
-	VkBufferCopy buffer_copy{};
-	buffer_copy.srcOffset = 0;
-	buffer_copy.dstOffset = 0;
-	buffer_copy.size = data_size_in_bytes;
-	vkCmdCopyBuffer(vklGetCurrentCommandBuffer(), host_Buffer, device_Buffer, 1u, &buffer_copy);
-}
-
-
-
-void vklCopyDataIntoDeviceBuffer(VkBuffer device_buffer, const void* data_pointer, size_t data_size_in_bytes) {
-	VkBuffer host_Buffer = vklCreateHostCoherentBufferWithBackingMemory(data_size_in_bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-	vklCopyDataIntoHostCoherentBuffer(host_Buffer, data_pointer, data_size_in_bytes);
-	vklCopyHostCoherentBufferIntoDeviceBuffer(host_Buffer, device_buffer, data_size_in_bytes);
-}

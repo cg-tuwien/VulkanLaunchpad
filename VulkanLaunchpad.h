@@ -331,12 +331,34 @@ vklAllocateHostCoherentMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMem
 VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage);
 
 /*!
+ *	Creates a new buffer (VkBuffer) and also allocates new memory on the device (VkDeviceMemory) to back the
+ *	buffer's size requirements. The memory will always be allocated from a region of so called "device-local"
+ *	memory, which is a region that is not accessible from the CPU, so that GPU can work faster on it.
+ *	Internally, this is indicated with the flag VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT.
+ *
+ *	@param buffer_size	The requested size of the buffer in bytes.
+ *	@param buffer_usage	Requested buffer usage flags.
+ *
+ *	@return A handle to a newly created buffer with backing memory.
+ */
+VkBuffer vklCreateDeviceBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage);
+
+/*!
  *	Frees the memory (VkDeviceMemory) and destroys the buffer (VkBuffer) which has previously been created
  *	using vklCreateHostCoherentBufferWithBackingMemory.
  *	@param	buffer		The buffer which shall be destroyed. The assigned VkDeviceMemory handle is tracked
  *						internally and will be freed before the buffer is destroyed.
  */
 void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer);
+
+
+/*!
+ *	Frees the memory (VkDeviceMemory) and destroys the buffer (VkBuffer) which has previously been created
+ *	using vklCreateDeviceBufferWithBackingMemory.
+ *	@param	buffer		The buffer which shall be destroyed. The assigned VkDeviceMemory handle is tracked
+ *						internally and will be freed before the buffer is destroyed.
+ */
+void vklDestroyDeviceBufferAndItsBackingMemory(VkBuffer buffer);
 
 /*!
  *	Copies data into the buffer, by reading it from the address at data_pointer and of the given byte size.
@@ -614,7 +636,3 @@ VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char *file, uint32
  *	@return	A perspective projection matrix based on the given parameters.
  */
 glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect_ratio, float near_plane_distance, float far_plane_distance);
-
-void vklCopyHostCoherentBufferIntoDeviceBuffer(VkBuffer host_Buffer, VkBuffer device_Buffer, size_t data_size_in_bytes);
-
-void vklCopyDataIntoDeviceBuffer(VkBuffer host_Buffer, const void* data_pointer, size_t data_size_in_bytes);
