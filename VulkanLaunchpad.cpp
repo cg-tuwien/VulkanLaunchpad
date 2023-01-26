@@ -71,6 +71,7 @@ uint32_t mCurrentSwapChainImageIndex;
 
 vk::UniqueCommandPool mCommandPool;
 std::unordered_map<VkBuffer, vk::UniqueDeviceMemory> mHostCoherentBuffersWithBackingMemory;
+std::unordered_map<VkBuffer, vk::UniqueDeviceMemory> mDeviceBuffersWithBackingMemory;
 std::unordered_map<VkImage, vk::UniqueDeviceMemory> mImagesWithBackingMemory;
 std::deque<vk::UniqueCommandBuffer> mSingleUseCommandBuffers;
 
@@ -651,7 +652,7 @@ void vklDestroyGraphicsPipeline(VkPipeline pipeline)
 	mDevice.destroy(vk::Pipeline{ pipeline });
 }
 
-vk::MemoryAllocateInfo vklCreateMemoryAllocateInfo(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements) {
+vk::MemoryAllocateInfo vklCreateMemoryAllocateInfo(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags flags) {
   auto memoryAllocInfo = vk::MemoryAllocateInfo{}
     .setAllocationSize(std::max(bufferSize, memoryRequirements.size))
     .setMemoryTypeIndex([&]() {
@@ -669,7 +670,7 @@ vk::MemoryAllocateInfo vklCreateMemoryAllocateInfo(vk::DeviceSize bufferSize, vk
         }
 
         // Does this kind of memory support our usage requirements?
-        if ((memoryProperties.memoryTypes[i].propertyFlags & (vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent))
+        if ((memoryProperties.memoryTypes[i].propertyFlags & (flags))
             != vk::MemoryPropertyFlags{}) {
           // Return the INDEX of a suitable memory type
           return i;
@@ -680,13 +681,13 @@ vk::MemoryAllocateInfo vklCreateMemoryAllocateInfo(vk::DeviceSize bufferSize, vk
   return memoryAllocInfo;
 }
 
-VkMemoryAllocateInfo vklCreateMemoryAllocateInfo(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements) {
-  return static_cast<VkMemoryAllocateInfo>(vklCreateMemoryAllocateInfo(static_cast<vk::DeviceSize>(bufferSize), static_cast<vk::MemoryRequirements>(memoryRequirements)));
+VkMemoryAllocateInfo vklCreateMemoryAllocateInfo(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags flags) {
+  return static_cast<VkMemoryAllocateInfo>(vklCreateMemoryAllocateInfo(static_cast<vk::DeviceSize>(bufferSize), static_cast<vk::MemoryRequirements>(memoryRequirements), static_cast<vk::MemoryPropertyFlags>(flags)));
 }
 
 VkDeviceMemory vklAllocateHostCoherentMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements)
 {
-    const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements);
+    const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 	// Allocate:
 	VkDeviceMemory memory;
@@ -699,11 +700,33 @@ VkDeviceMemory vklAllocateHostCoherentMemoryForGivenRequirements(VkDeviceSize bu
 	}
 }
 
+VkDeviceMemory vklAllocateDeviceMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements)
+{
+	const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	// Allocate:
+	VkDeviceMemory memory;
+	VkResult returnCode = vkAllocateMemory(static_cast<VkDevice>(mDevice), &memoryAllocInfo, NULL, &memory);
+	if (returnCode == VK_SUCCESS) {
+		return memory;
+	}
+	else {
+		VKL_EXIT_WITH_ERROR(std::string("Error allocating memory of size [") + std::to_string(bufferSize) + "] and requirements[" + std::to_string(memoryRequirements.alignment) + ", " + std::to_string(memoryRequirements.memoryTypeBits) + ", " + std::to_string(memoryRequirements.size) + "]\n    Error Code: " + to_string(returnCode));
+	}
+}
+
 vk::UniqueDeviceMemory vklAllocateHostCoherentMemoryForGivenRequirements(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements) {
-  const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements);
+  const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
   auto allocatedMemory = mDevice.allocateMemoryUnique(memoryAllocInfo, nullptr, mDispatchLoader);
   return allocatedMemory;
 }
+
+vk::UniqueDeviceMemory vklAllocateDeviceMemoryForGivenRequirements(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements) {
+	auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	auto allocatedMemory = mDevice.allocateMemoryUnique(memoryAllocInfo, nullptr, mDispatchLoader);
+	return allocatedMemory;
+}
+
 
 VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage)
 {
@@ -730,6 +753,31 @@ VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, 
 	return static_cast<VkBuffer>(buffer);
 }
 
+VkBuffer vklCreateDeviceBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage)
+{
+	if (!vklFrameworkInitialized()) {
+		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
+	}
+
+	// Describe a new buffer:
+	auto createInfo = vk::BufferCreateInfo{}
+		.setSize(static_cast<vk::DeviceSize>(buffer_size))
+		.setUsage(vk::BufferUsageFlags{ buffer_usage });
+	auto buffer = mDevice.createBuffer(createInfo);
+
+	// Allocate the memory (we want host-coherent memory):
+	auto memory = vklAllocateDeviceMemoryForGivenRequirements(static_cast<vk::DeviceSize>(buffer_size), mDevice.getBufferMemoryRequirements(buffer));
+
+	// Bind the buffer handle to the memory:
+	// mDevice.bindBufferMemory(buffer, memory.get(), 0);
+	mDevice.bindBufferMemory(buffer, memory.get(), 0);
+
+	// Remember the assignment:
+	mDeviceBuffersWithBackingMemory[static_cast<VkBuffer>(buffer)] = std::move(memory);
+
+	return static_cast<VkBuffer>(buffer);
+}
+
 void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer)
 {
 	if (!vklFrameworkInitialized()) {
@@ -745,6 +793,26 @@ void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer)
 	}
 	else {
 		std::cout << "WARNING: VkDeviceMemory for the given VkBuffer not found. Are you sure that you have created this buffer with vklCreateHostCoherentBufferWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkBuffer?" << std::endl;
+	}
+
+	mDevice.destroy(vk::Buffer{ buffer });
+}
+
+void vklDestroyDeviceBufferAndItsBackingMemory(VkBuffer buffer)
+{
+	if (!vklFrameworkInitialized()) {
+		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
+	}
+	if (VkBuffer{} == buffer) {
+		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklDestroyDeviceBufferAndItsBackingMemory(...)");
+	}
+
+	auto search = mDeviceBuffersWithBackingMemory.find(buffer);
+	if (mDeviceBuffersWithBackingMemory.end() != search) {
+		mDeviceBuffersWithBackingMemory.erase(search);
+	}
+	else {
+		std::cout << "WARNING: VkDeviceMemory for the given VkBuffer not found. Are you sure that you have created this buffer with vklCreateDeviceBufferWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkBuffer?" << std::endl;
 	}
 
 	mDevice.destroy(vk::Buffer{ buffer });
@@ -775,6 +843,8 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
 	memcpy(mappedMemory, data_pointer, data_size_in_bytes);
 	mDevice.unmapMemory(search->second.get());
 }
+
+
 
 /*!
  * Create a new host coherent buffer on the GPU, upload the supplied data from the vector, and return the buffer handle.
@@ -1749,4 +1819,20 @@ glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect
 	m[3][2] = -near_plane_distance * zScale; // ... by this amount
 
 	return m * sInverseRotateAroundXFrom_RH_Yup_to_RH_Ydown;
+}
+
+void vklCopyHostCoherentBufferIntoDeviceBuffer(VkBuffer host_Buffer,VkBuffer device_Buffer, size_t data_size_in_bytes) {
+	VkBufferCopy buffer_copy{};
+	buffer_copy.srcOffset = 0;
+	buffer_copy.dstOffset = 0;
+	buffer_copy.size = data_size_in_bytes;
+	vkCmdCopyBuffer(vklGetCurrentCommandBuffer(), host_Buffer, device_Buffer, 1u, &buffer_copy);
+}
+
+
+
+void vklCopyDataIntoDeviceBuffer(VkBuffer device_buffer, const void* data_pointer, size_t data_size_in_bytes) {
+	VkBuffer host_Buffer = vklCreateHostCoherentBufferWithBackingMemory(data_size_in_bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	vklCopyDataIntoHostCoherentBuffer(host_Buffer, data_pointer, data_size_in_bytes);
+	vklCopyHostCoherentBufferIntoDeviceBuffer(host_Buffer, device_buffer, data_size_in_bytes);
 }

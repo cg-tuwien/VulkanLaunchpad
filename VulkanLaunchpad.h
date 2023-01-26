@@ -614,3 +614,7 @@ VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char *file, uint32
  *	@return	A perspective projection matrix based on the given parameters.
  */
 glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect_ratio, float near_plane_distance, float far_plane_distance);
+
+void vklCopyHostCoherentBufferIntoDeviceBuffer(VkBuffer host_Buffer, VkBuffer device_Buffer, size_t data_size_in_bytes);
+
+void vklCopyDataIntoDeviceBuffer(VkBuffer host_Buffer, const void* data_pointer, size_t data_size_in_bytes);
