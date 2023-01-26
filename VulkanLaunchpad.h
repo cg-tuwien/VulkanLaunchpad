@@ -29,18 +29,20 @@ extern const char *to_string(VkResult result);
 
 #define VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM " (in " << VKL_FILENAME << " at line #" << __LINE__ << ")"
 
-#define VKL_LOG(log) do { std::cout << "LOG:   " << log << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } while(false)
+#define VKL_LOG(log)             do { std::cout << "LOG:     " << log << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } while(false)
 
-#define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR: " << err << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); std::stringstream ss; ss << err; throw std::runtime_error(ss.str()); } while(false)
+#define VKL_WARNING(log)         do { std::cout << "WARNING: " << log << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } while(false)
+
+#define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR:   " << err << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); std::stringstream ss; ss << err; throw std::runtime_error(ss.str()); } while(false)
 
 // Evaluates a VkResult and displays its status:
-#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } else { std::cout << "CHECK: Vulkan operation returned status code: " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
+#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR:   Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } else { std::cout << "CHECK:   Vulkan operation returned status code: " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
 
 // Evaluates a VkResult and displays its status only if it represents an error:
-#define VKL_CHECK_VULKAN_ERROR(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR: Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } } while(false)
+#define VKL_CHECK_VULKAN_ERROR(result)  do { if ((result) < VK_SUCCESS) { std::cout << "ERROR:   Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } } while(false)
 
 // Evaluates a VkResult and issues a return statement if it represents an error:
-#define VKL_RETURN_ON_ERROR(result) do { if ((result) < VK_SUCCESS) { return; } } while(false)
+#define VKL_RETURN_ON_ERROR(result)     do { if ((result) < VK_SUCCESS) { return; } } while(false)
 
 /*!
  *	A struct containing details about one specific image that is used in a swap chain
@@ -176,30 +178,6 @@ struct VklGeometryData {
     /*! If you do not desire to have any texture coordinates for your vertices, leave this vector empty. */
     std::vector<glm::vec2> textureCoordinates;
 };
-
-/*!
- * A struct containing all data for a geometry object on the GPU-side.
- *
- * In practice this means it saves the handles for the positions, normals, and texture coordinate buffers as
- * well as the number of indices. If any of the optional buffers (normals and texture coordinates) are left unfilled,
- * the value of the handle will be `VK_NULL_HANDLE`.
- */
- struct VklGeometryHandles {
-     //! A handle to a Vulkan Buffer on the GPU containing the vertex position data.
-     VkBuffer positionsBuffer;
-
-     //! A handle to a Vulkan Buffer on the GPU containing the face index data.
-     VkBuffer indicesBuffer;
-
-     //! A handle to a Vulkan Buffer on the GPU containing the vertex normal data, or `VK_NULL_HANDLE` if no normal data is given.
-     VkBuffer normalsBuffer;
-
-     //! A handle to a Vulkan Buffer on the GPU containing vertex texture position data, or `VK_NULL_HANDLE` if no texture position data is given.
-     VkBuffer textureCoordinatesBuffer;
-
-     //! The total number of indices in the `indicesBuffer`.
-     uint32_t numberOfIndices;
- };
 
 /* --------------------------------------------- */
 // Framework functions

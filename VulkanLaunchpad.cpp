@@ -1816,18 +1816,30 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 	std::string warning;
 	std::string error;
 	std::istringstream sourceStream(loadObjectFromFile(path_to_obj));
-	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &warning, &error, &sourceStream))
-	{
-		throw std::runtime_error("ast::assets::loadOBJFile: Error: " + warning + error);
+	if (!tinyobj::LoadObj(&attributes, &shapes, &materials, &warning, &error, &sourceStream)) {
+		VKL_EXIT_WITH_ERROR("Failed attempt to load 3D model from \"" << path_to_obj << "\". Warning[" << warning << "], Error[" << error << "]");
 	}
+
 	VklGeometryData data;
-	std::unordered_map<std::size_t, uint32_t>uniqueVertices;
-	for (tinyobj::shape_t shape : shapes) {
-		for (const auto& index : shape.mesh.indices) {
-			glm::vec3 pos = glm::vec3(attributes.vertices[3 * index.vertex_index], attributes.vertices[3 * index.vertex_index + 1], attributes.vertices[3 * index.vertex_index + 2]);
-			glm::vec2 uv = glm::vec2(attributes.texcoords[2 * index.texcoord_index], 1.0f - attributes.texcoords[2 * index.texcoord_index + 1]);
-			glm::vec3 normal = glm::vec3(attributes.normals[3 * index.normal_index], attributes.normals[3 * index.normal_index + 1], attributes.normals[3 * index.normal_index + 2]);
-			std::size_t hash = checkIndices(index.vertex_index, index.normal_index, index.texcoord_index);
+	std::unordered_map<std::size_t, uint32_t> uniqueVertices;
+	for (const tinyobj::shape_t& shape : shapes) {
+		for (const auto& indices : shape.mesh.indices) {
+			glm::vec3 pos = glm::vec3(
+				attributes.vertices[3 * indices.vertex_index], 
+				attributes.vertices[3 * indices.vertex_index + 1], 
+				attributes.vertices[3 * indices.vertex_index + 2]
+			);
+			glm::vec2 uv = glm::vec2(
+				attributes.texcoords[2 * indices.texcoord_index], 
+				1.0f - attributes.texcoords[2 * indices.texcoord_index + 1]
+			);
+			glm::vec3 normal = glm::vec3(
+				attributes.normals[3 * indices.normal_index], 
+				attributes.normals[3 * indices.normal_index + 1], 
+				attributes.normals[3 * indices.normal_index + 2]
+			);
+
+			std::size_t hash = checkIndices(indices.vertex_index, indices.normal_index, indices.texcoord_index);
 			if (uniqueVertices.count(hash) == 0) {
 				uniqueVertices[hash] = static_cast<uint32_t>(data.positions.size());
 				data.positions.push_back(pos);
@@ -1835,7 +1847,6 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 				data.normals.push_back(normal);
 			}
 			data.indices.push_back(uniqueVertices[hash]);
-
 		}
 	}
 	return data;
