@@ -4,6 +4,7 @@
 #include "Camera.h"
 #include <glm/gtx/quaternion.hpp>
 #include <list>
+#include <algorithm>
 
 std::list<VklCamera> mCameras;
 float mInput1 = 6.0f;
