@@ -18,6 +18,7 @@ Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Gi
 - [Editors and IDEs](#editors-and-ides)
     - [Visual Studio Code (VS Code)](#visual-studio-code-vs-code)
     - [Visual Studio 2022 Community](#visual-studio-2022-community)
+- [Troubleshooting](#troubleshooting)
 
 ## Operating Systems
 
@@ -194,6 +195,12 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
         - If not, check if the `Show output from:` combobox is set to the option `CMake`!
         - Wait a bit until you see the message `CMake generation finished.`.
     - Execute `Build -> Build All` (default shortcut: `Ctrl+Shift+B`) to build Vulkan Launchpad as a static library.
+
+## Troubleshooting
+
+The project setup takes too long during CMake configuration in my IDE: The submodules glfw/glm/glslang are cloning forever!
+* Please clone the repo "by hand" in a terminal in a new location using the following git commands:
+	`git clone git@github.com:cg-tuwien/VulkanLaunchpadStarter.git && cd VulkanLaunchpadStarter && git submodule update --init --recursive`
 
 # Documentation
 
