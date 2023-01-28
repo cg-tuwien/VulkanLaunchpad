@@ -5,21 +5,26 @@ A framework by TU Wien targeted at Vulkan beginners. It abstracts some of the ha
 ## Setup Instructions
 
 Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/), and optimally an integrated development environment (IDE). In the following, we describe setup instructions for common operating systems and editors/IDEs (click the links in the table of contents to jump to the sections that are relevant to your chosen setup):
-- [Operating Systems](#operating-systems)
-    - [Windows](#windows)
-    - [macOS](#macos)
-    - [Linux](#linux)
-        - [Dependencies](#dependencies)
-        - [Ubuntu 22.04](#ubuntu-2204)
-        - [Ubuntu 20.04](#ubuntu-2004)
-        - [Linux Mint 21.1](#linux-mint-211)
-        - [Debian Bullseye](#debian-bullseye)
-        - [Automatic Git Clone and Build via Commandline](#automatic-git-clone-and-build-via-commandline)
-- [Editors and IDEs](#editors-and-ides)
-    - [Visual Studio Code (VS Code)](#visual-studio-code-vs-code)
-    - [Visual Studio 2022 Community](#visual-studio-2022-community)
-- [Troubleshooting](#troubleshooting)
-	- [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
+- [Vulkan Launchpad :rocket:](#vulkan-launchpad-rocket)
+	- [Setup Instructions](#setup-instructions)
+	- [Operating Systems](#operating-systems)
+		- [Windows](#windows)
+		- [macOS](#macos)
+		- [Linux](#linux)
+			- [Dependencies](#dependencies)
+				- [Ubuntu 22.04](#ubuntu-2204)
+				- [Ubuntu 20.04](#ubuntu-2004)
+				- [Linux Mint 21.1](#linux-mint-211)
+				- [Debian Bullseye](#debian-bullseye)
+				- [Automatic Git Clone and Build via Commandline](#automatic-git-clone-and-build-via-commandline)
+	- [Editors and IDEs](#editors-and-ides)
+		- [Visual Studio Code (VS Code)](#visual-studio-code-vs-code)
+		- [Visual Studio 2022 Community](#visual-studio-2022-community)
+		- [Xcode](#xcode)
+		- [Other](#other)
+	- [Troubleshooting](#troubleshooting)
+		- [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
+- [Documentation](#documentation)
 
 ## Operating Systems
 
@@ -197,13 +202,30 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
         - Wait a bit until you see the message `CMake generation finished.`.
     - Execute `Build -> Build All` (default shortcut: `Ctrl+Shift+B`) to build Vulkan Launchpad as a static library.
 
+### Xcode
+- Download and install [Xcode](https://apps.apple.com/us/app/xcode/id497799835) from the Mac App Store!
+- Generate the Xcode project files!
+  - Command line Option
+    - Open a terminal window at the workspace root directory. This can be done by right clicking the folder and selecting `New Terminal at Folder`.
+    - Option 1: Execute `make` from the terminal. This uses the included `makefile` located in the workspace root directory. Project files can be found in `_project` afterwards.
+    - Option 2: Execute `cmake -H. -B_project -G "Xcode" -DCMAKE_INSTALL_PREFIX="_install"` from the terminal.
+  - CMake Gui Option
+    - Open the CMake Gui and specify the workspace root directory as the source directory. Specify a folder into which the generated project files should be stored. Click `Configure`, select Xcode as the Generator and press `Done`. After completion, press `Generate`.
+- Open `VulkanLaunchpad.xcodeproj` with Xcode. The file should be located in the folder into which the project files were generated.
+
+### Other
+Even though other CMake compatible IDEs like CLion or Qt Creator should also work, it is difficult for us to test them all. In case you want to use an IDE not tested by us, consider the following remarks for the setup process.
+- Make sure to set the working directory to the workspace directory.
+
 ## Troubleshooting
 
 ### Submodule Updates Take a Long Time
 
 In case you experience problems concerning the submodule checkout, i.e. the cloning of the submodules (GLFW, GLM or glslang) takes a long time or seems to be stuck, please try the following approach:
-* Please clone the repo manually in a terminal in a new location using the following git commands:
-	`git clone git@github.com:cg-tuwien/VulkanLaunchpadStarter.git && cd VulkanLaunchpadStarter && git submodule update --init --recursive`
+* Please clone the repo manually in a terminal in a new location using the following git commands:     
+    ```bash
+    git clone --recurse-submodules https://github.com/cg-tuwien/VulkanLaunchpadStarter.git
+    ```
 
 # Documentation
 
