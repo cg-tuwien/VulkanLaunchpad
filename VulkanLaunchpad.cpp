@@ -1421,7 +1421,7 @@ VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_dev
 		.setAllocationSize(memoryRequirements.size)
 		.setMemoryTypeIndex([&]() {
 			// Get memory types supported by the physical device:
-			auto memoryProperties = mPhysicalDevice.getMemoryProperties();
+			auto memoryProperties = vk::PhysicalDevice{ physical_device }.getMemoryProperties();
 
 			// In search for a suitable memory type INDEX:
 			int selectedMemIndex = -1;
