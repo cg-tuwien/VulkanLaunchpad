@@ -1488,7 +1488,7 @@ VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t heig
 	return vklCreateDeviceLocalImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags, array_layers, flags);
 }
 
-void vklDestroyImageAndItsBackingMemory(VkImage image)
+void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");

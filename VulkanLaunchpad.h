@@ -427,11 +427,11 @@ vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkD
 
 /*!
  *	Frees the memory (VkDeviceMemory) and destroys the image (VkImage) which has previously been created
- *	using vklCreateImageWithBackingMemory.
+ *	using vklCreateDeviceLocalImageWithBackingMemory.
  *	@param	image		The image which shall be destroyed. The assigned VkDeviceMemory handle is tracked
  *						internally and will be freed before the image is destroyed.
  */
-void vklDestroyImageAndItsBackingMemory(VkImage image);
+void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
