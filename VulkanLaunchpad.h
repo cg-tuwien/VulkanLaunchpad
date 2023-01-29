@@ -400,8 +400,8 @@ void vklBindDescriptorSetToPipeline(VkDescriptorSet descriptor_set, VkPipeline p
  *	@return A handle to a newly created image with backing memory.
  */
 VkImage
-vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
-                                VkFormat format, VkImageUsageFlags usage_flags);
+vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
+                                           VkFormat format, VkImageUsageFlags usage_flags);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
@@ -419,9 +419,9 @@ vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice devic
  *	@return A handle to a newly created image with backing memory.
  */
 VkImage
-vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
-                                VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers,
-                                VkImageCreateFlags flags);
+vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
+                                           VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers,
+                                           VkImageCreateFlags flags);
 
 /*!
  *	Frees the memory (VkDeviceMemory) and destroys the image (VkImage) which has previously been created
@@ -443,7 +443,7 @@ void vklDestroyImageAndItsBackingMemory(VkImage image);
  *	@return A handle to a newly created image with backing memory.
  */
 VkImage
-vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags);
+vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
@@ -458,8 +458,8 @@ vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format
  *
  *	@return A handle to a newly created image with backing memory.
  */
-VkImage vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags,
-                                        uint32_t array_layers, VkImageCreateFlags flags);
+VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags,
+                                                   uint32_t array_layers, VkImageCreateFlags flags);
 
 /*!
  *	Gets the VkPipelineLayout for the given VkPipeline, given that the

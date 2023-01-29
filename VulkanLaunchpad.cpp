@@ -1399,7 +1399,7 @@ VkDevice vklGetDevice()
   return static_cast<VkDevice>(mDevice);
 }
 
-VkImage vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
+VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
 {
 	auto createInfo = vk::ImageCreateInfo{}
 		.setFlags(static_cast<vk::ImageCreateFlagBits>(flags))
@@ -1420,28 +1420,42 @@ VkImage vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevi
 	auto memoryAllocInfo = vk::MemoryAllocateInfo{}
 		.setAllocationSize(memoryRequirements.size)
 		.setMemoryTypeIndex([&]() {
-		// Get memory types supported by the physical device:
-		auto memoryProperties = vk::PhysicalDevice{ physical_device }.getMemoryProperties();
+			// Get memory types supported by the physical device:
+			auto memoryProperties = mPhysicalDevice.getMemoryProperties();
 
-		// In search for a suitable memory type INDEX:
-		for (uint32_t i = 0u; i < memoryProperties.memoryTypeCount; ++i) {
+			// In search for a suitable memory type INDEX:
+			int selectedMemIndex = -1;
+			vk::DeviceSize selectedHeapSize = 0;
+			for (int i = 0; i < static_cast<int>(memoryProperties.memoryTypeCount); ++i) {
 
-			// Is this kind of memory suitable for our buffer?
-			const auto bitmask = memoryRequirements.memoryTypeBits;
-			const auto bit = 1 << i;
-			if (0 == (bitmask & bit)) {
-				continue; // => nope
+				// Is this kind of memory suitable for our buffer?
+				const auto bitmask = memoryRequirements.memoryTypeBits;
+				const auto bit = 1 << i;
+				if (0 == (bitmask & bit)) {
+					continue; // => nope
+				}
+
+				// Does this kind of memory support our usage requirements?
+
+				// In contrast to our host-coherent buffers, we just assume that we want all our images to live in device memory:
+				if ((memoryProperties.memoryTypes[i].propertyFlags & vk::MemoryPropertyFlagBits::eDeviceLocal) != vk::MemoryPropertyFlags{}) {
+					// Would support => now select the one with the largest heap:
+					const auto heapSize = memoryProperties.memoryHeaps[memoryProperties.memoryTypes[i].heapIndex].size;
+					if (heapSize > selectedHeapSize) {
+						// We have a new king:
+						selectedMemIndex = i;
+						selectedHeapSize = heapSize;
+					}
+				}
 			}
 
-			// Does this kind of memory support our usage requirements?
-			if ((memoryProperties.memoryTypes[i].propertyFlags & vk::MemoryPropertyFlagBits::eDeviceLocal) // In contrast to our host-coherent buffers, we just assume that we want all our images to live in device memory
-				!= vk::MemoryPropertyFlags{}) {
-				// Return the INDEX of a suitable memory type
-				return i;
+			if (-1 == selectedMemIndex) {
+				VKL_EXIT_WITH_ERROR(std::string("ERROR: Couldn't find suitable memory for image, requirements[") + std::to_string(memoryRequirements.alignment) + ", " + std::to_string(memoryRequirements.memoryTypeBits) + ", " + std::to_string(memoryRequirements.size) + "]");
 			}
-		}
-		VKL_EXIT_WITH_ERROR("Couldn't find suitable memory.");
-	}());
+
+			// all good, we found a suitable memory index:
+			return static_cast<uint32_t>(selectedMemIndex);
+		}());
 
 	auto memory = vk::Device{ device }.allocateMemoryUnique(memoryAllocInfo, nullptr, mDispatchLoader);
 
@@ -1453,25 +1467,25 @@ VkImage vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevi
 	return static_cast<VkImage>(image);
 }
 
-VkImage vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
+VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
 {
-	return vklCreateImageWithBackingMemory(physical_device, device, width, height, format, usage_flags, /* one layer: */ 1u, /* no flags: */{});
+	return vklCreateDeviceLocalImageWithBackingMemory(physical_device, device, width, height, format, usage_flags, /* one layer: */ 1u, /* no flags: */{});
 }
 
-VkImage vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
+VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
 	}
-	return vklCreateImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags);
+	return vklCreateDeviceLocalImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags);
 }
 
-VkImage vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
+VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
 	}
-	return vklCreateImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags, array_layers, flags);
+	return vklCreateDeviceLocalImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags, array_layers, flags);
 }
 
 void vklDestroyImageAndItsBackingMemory(VkImage image)
@@ -1488,7 +1502,7 @@ void vklDestroyImageAndItsBackingMemory(VkImage image)
 		mImagesWithBackingMemory.erase(search);
 	}
 	else {
-		VKL_WARNING("VkDeviceMemory for the given VkImage not found. Are you sure that you have created this buffer with vklCreateImageWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkImage?");
+		VKL_WARNING("VkDeviceMemory for the given VkImage not found. Are you sure that you have created this buffer with vklCreateDeviceLocalImageWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkImage?");
 	}
 
 	mDevice.destroy(vk::Image{ image });
