@@ -818,7 +818,7 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
  * @param usageFlags Usage flags to use when createing the buffer.
  * @return The handle of the newly generated buffer.
  */
-VkBuffer vklCreateBufferAndUploadIntoGpuMemory(const void* data, size_t size, VkBufferUsageFlags usageFlags) {
+VkBuffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, VkBufferUsageFlags usageFlags) {
     VkBuffer result {};
     result = vklCreateHostCoherentBufferWithBackingMemory(
             static_cast<VkDeviceSize>(size),
@@ -826,13 +826,6 @@ VkBuffer vklCreateBufferAndUploadIntoGpuMemory(const void* data, size_t size, Vk
     );
     vklCopyDataIntoHostCoherentBuffer(result, data, size);
     return result;
-}
-
-void vklDestroyBufferInGpuMemory(VkBuffer buffer) {
-    if(buffer == VK_NULL_HANDLE) {
-        VKL_EXIT_WITH_ERROR("The buffer passed to vklDestroyBufferInGpuMemory(...) is NULL.");
-    }
-    vklDestroyHostCoherentBufferAndItsBackingMemory(buffer);
 }
 
 const char* vklRequiredInstanceExtensions[] = {

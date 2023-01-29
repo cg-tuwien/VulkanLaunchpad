@@ -365,7 +365,7 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
 /*!
  * Create a new host coherent buffer on the GPU, upload the supplied data from the vector, and return the buffer handle.
  *
- * Be sure to free the allocated memory by calling `vklDestroyBufferInGpuMemory(...)` on the returned handle once the
+ * Be sure to free the allocated memory by calling `vklDestroyHostCoherentBufferAndItsBackingMemory(...)` on the returned handle once the
  * buffer is no longer required.
  *
  * @param data Pointer to the data to upload to the GPU.
@@ -373,14 +373,7 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
  * @param usageFlags Usage flags to use when creating the buffer.
  * @return The handle of the newly generated buffer.
  */
-VkBuffer vklCreateBufferAndUploadIntoGpuMemory(const void* data, size_t size, VkBufferUsageFlags usageFlags);
-
-/*!
- * Free the GPU memory of Vulkan Buffers created by `vklCreateBufferAndUploadIntoGpuMemory`.
- *
- * @param buffer Handle of the host coherent buffer to free.
- */
-void vklDestroyBufferInGpuMemory(VkBuffer buffer);
+VkBuffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, VkBufferUsageFlags usageFlags);
 
 /*!
  *	Binds the given descriptor set for the given graphics pipeline (internally using vkCmdBindDescriptorSets).
