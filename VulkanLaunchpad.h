@@ -294,11 +294,13 @@ void vklDestroyGraphicsPipeline(VkPipeline pipeline);
 /*!
  *  Allocates host-coherent memory that fits the given requirements.
  *
- *  @param bufferSize The requested size of the memory in bytes.
- *  @param memoryRequirements The requested requirements for the memory.
+ *  @param bufferSize            The requested size of the memory in bytes.
+ *  @param memoryRequirements    The requested requirements for the memory.
+ *  @param memoryPropertyFlags   The memory properties that the allocated buffer must support. 
+ *                               For, e.g., host-coherent memory, pass VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+ *                               For, e.g., device-local memory, pass VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
  */
-VkDeviceMemory
-vklAllocateHostCoherentMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements);
+VkDeviceMemory vklAllocateMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags memoryPropertyFlags);
 
 /*!
  *	Creates a new buffer (VkBuffer) and also allocates new memory on the device (VkDeviceMemory) to back the
