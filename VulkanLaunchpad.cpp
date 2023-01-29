@@ -578,6 +578,18 @@ VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bo
 	auto colorBlendAttachmentState = vk::PipelineColorBlendAttachmentState{}
 		.setBlendEnable(VK_FALSE)
 		.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA); // write all color components
+
+	if (config.enableAlphaBlending) {
+		colorBlendAttachmentState
+			.setBlendEnable(VK_TRUE)
+			.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
+			.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+			.setColorBlendOp(vk::BlendOp::eAdd)
+			.setSrcAlphaBlendFactor(vk::BlendFactor::eSrcAlpha)
+			.setDstAlphaBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+			.setAlphaBlendOp(vk::BlendOp::eAdd);
+	}
+
 	auto colorBlendState = vk::PipelineColorBlendStateCreateInfo{}.setAttachmentCount(1u).setPAttachments(&colorBlendAttachmentState);
 	
 	// But again: not so fast! We have to define the LAYOUT of our descriptors first

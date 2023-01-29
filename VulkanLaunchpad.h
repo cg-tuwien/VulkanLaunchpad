@@ -157,6 +157,13 @@ struct VklGraphicsPipelineConfig {
      *	.binding        = 5
      */
     std::vector<VkDescriptorSetLayoutBinding> descriptorLayout;
+
+    /*! If set to true, the pipeline will be configured to have blending enabled, 
+     *  where its blend factors are set as follows: 
+     *    srcColorBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA
+     *    dstColorBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+     */
+    bool enableAlphaBlending = false;
 };
 
 /*!
