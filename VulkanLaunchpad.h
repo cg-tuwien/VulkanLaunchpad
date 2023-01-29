@@ -157,6 +157,13 @@ struct VklGraphicsPipelineConfig {
      *	.binding        = 5
      */
     std::vector<VkDescriptorSetLayoutBinding> descriptorLayout;
+
+    /*! If set to true, the pipeline will be configured to have blending enabled, 
+     *  where its blend factors are set as follows: 
+     *    srcColorBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA
+     *    dstColorBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+     */
+    bool enableAlphaBlending = false;
 };
 
 /*!
@@ -294,11 +301,13 @@ void vklDestroyGraphicsPipeline(VkPipeline pipeline);
 /*!
  *  Allocates host-coherent memory that fits the given requirements.
  *
- *  @param bufferSize The requested size of the memory in bytes.
- *  @param memoryRequirements The requested requirements for the memory.
+ *  @param bufferSize            The requested size of the memory in bytes.
+ *  @param memoryRequirements    The requested requirements for the memory.
+ *  @param memoryPropertyFlags   The memory properties that the allocated buffer must support. 
+ *                               For, e.g., host-coherent memory, pass VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+ *                               For, e.g., device-local memory, pass VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
  */
-VkDeviceMemory
-vklAllocateHostCoherentMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements);
+VkDeviceMemory vklAllocateMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags memoryPropertyFlags);
 
 /*!
  *	Creates a new buffer (VkBuffer) and also allocates new memory on the device (VkDeviceMemory) to back the
@@ -314,12 +323,33 @@ vklAllocateHostCoherentMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMem
 VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage);
 
 /*!
+ *	Creates a new buffer (VkBuffer) and also allocates new memory on the device (VkDeviceMemory) to back the
+ *	buffer's size requirements. The memory will always be allocated from a region of so called "device-local"
+ *	memory, which is a region that is not accessible from the CPU, which is faster to access and transfer on the device.
+ *	Internally, this is indicated with the flag VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT.
+ *
+ *	@param buffer_size	The requested size of the buffer in bytes.
+ *	@param buffer_usage	Requested buffer usage flags.
+ *
+ *	@return A handle to a newly created buffer with backing memory.
+ */
+VkBuffer vklCreateDeviceLocalBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage);
+
+/*!
  *	Frees the memory (VkDeviceMemory) and destroys the buffer (VkBuffer) which has previously been created
  *	using vklCreateHostCoherentBufferWithBackingMemory.
  *	@param	buffer		The buffer which shall be destroyed. The assigned VkDeviceMemory handle is tracked
  *						internally and will be freed before the buffer is destroyed.
  */
 void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer);
+
+/*!
+ *	Frees the memory (VkDeviceMemory) and destroys the buffer (VkBuffer) which has previously been created
+ *	using vklCreateDeviceBufferWithBackingMemory.
+ *	@param	buffer		The buffer which shall be destroyed. The assigned VkDeviceMemory handle is tracked
+ *						internally and will be freed before the buffer is destroyed.
+ */
+void vklDestroyDeviceLocalBufferAndItsBackingMemory(VkBuffer buffer);
 
 /*!
  *	Copies data into the buffer, by reading it from the address at data_pointer and of the given byte size.
@@ -344,7 +374,7 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
 /*!
  * Create a new host coherent buffer on the GPU, upload the supplied data from the vector, and return the buffer handle.
  *
- * Be sure to free the allocated memory by calling `vklDestroyBufferInGpuMemory(...)` on the returned handle once the
+ * Be sure to free the allocated memory by calling `vklDestroyHostCoherentBufferAndItsBackingMemory(...)` on the returned handle once the
  * buffer is no longer required.
  *
  * @param data Pointer to the data to upload to the GPU.
@@ -352,14 +382,7 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
  * @param usageFlags Usage flags to use when creating the buffer.
  * @return The handle of the newly generated buffer.
  */
-VkBuffer vklCreateBufferAndUploadIntoGpuMemory(const void* data, size_t size, VkBufferUsageFlags usageFlags);
-
-/*!
- * Free the GPU memory of Vulkan Buffers created by `vklCreateBufferAndUploadIntoGpuMemory`.
- *
- * @param buffer Handle of the host coherent buffer to free.
- */
-void vklDestroyBufferInGpuMemory(VkBuffer buffer);
+VkBuffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, VkBufferUsageFlags usageFlags);
 
 /*!
  *	Binds the given descriptor set for the given graphics pipeline (internally using vkCmdBindDescriptorSets).
@@ -386,8 +409,8 @@ void vklBindDescriptorSetToPipeline(VkDescriptorSet descriptor_set, VkPipeline p
  *	@return A handle to a newly created image with backing memory.
  */
 VkImage
-vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
-                                VkFormat format, VkImageUsageFlags usage_flags);
+vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
+                                           VkFormat format, VkImageUsageFlags usage_flags);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
@@ -405,17 +428,17 @@ vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice devic
  *	@return A handle to a newly created image with backing memory.
  */
 VkImage
-vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
-                                VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers,
-                                VkImageCreateFlags flags);
+vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
+                                           VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers,
+                                           VkImageCreateFlags flags);
 
 /*!
  *	Frees the memory (VkDeviceMemory) and destroys the image (VkImage) which has previously been created
- *	using vklCreateImageWithBackingMemory.
+ *	using vklCreateDeviceLocalImageWithBackingMemory.
  *	@param	image		The image which shall be destroyed. The assigned VkDeviceMemory handle is tracked
  *						internally and will be freed before the image is destroyed.
  */
-void vklDestroyImageAndItsBackingMemory(VkImage image);
+void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
@@ -429,7 +452,7 @@ void vklDestroyImageAndItsBackingMemory(VkImage image);
  *	@return A handle to a newly created image with backing memory.
  */
 VkImage
-vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags);
+vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
@@ -444,8 +467,8 @@ vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format
  *
  *	@return A handle to a newly created image with backing memory.
  */
-VkImage vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags,
-                                        uint32_t array_layers, VkImageCreateFlags flags);
+VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags,
+                                                   uint32_t array_layers, VkImageCreateFlags flags);
 
 /*!
  *	Gets the VkPipelineLayout for the given VkPipeline, given that the

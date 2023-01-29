@@ -72,6 +72,7 @@ uint32_t mCurrentSwapChainImageIndex;
 
 vk::UniqueCommandPool mCommandPool;
 std::unordered_map<VkBuffer, vk::UniqueDeviceMemory> mHostCoherentBuffersWithBackingMemory;
+std::unordered_map<VkBuffer, vk::UniqueDeviceMemory> mDeviceLocalBuffersWithBackingMemory;
 std::unordered_map<VkImage, vk::UniqueDeviceMemory> mImagesWithBackingMemory;
 std::deque<vk::UniqueCommandBuffer> mSingleUseCommandBuffers;
 
@@ -577,6 +578,18 @@ VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bo
 	auto colorBlendAttachmentState = vk::PipelineColorBlendAttachmentState{}
 		.setBlendEnable(VK_FALSE)
 		.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA); // write all color components
+
+	if (config.enableAlphaBlending) {
+		colorBlendAttachmentState
+			.setBlendEnable(VK_TRUE)
+			.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
+			.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+			.setColorBlendOp(vk::BlendOp::eAdd)
+			.setSrcAlphaBlendFactor(vk::BlendFactor::eSrcAlpha)
+			.setDstAlphaBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+			.setAlphaBlendOp(vk::BlendOp::eAdd);
+	}
+
 	auto colorBlendState = vk::PipelineColorBlendStateCreateInfo{}.setAttachmentCount(1u).setPAttachments(&colorBlendAttachmentState);
 	
 	// But again: not so fast! We have to define the LAYOUT of our descriptors first
@@ -628,42 +641,54 @@ void vklDestroyGraphicsPipeline(VkPipeline pipeline)
 	mDevice.destroy(vk::Pipeline{ pipeline });
 }
 
-vk::MemoryAllocateInfo vklCreateMemoryAllocateInfo(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements) {
-  auto memoryAllocInfo = vk::MemoryAllocateInfo{}
-    .setAllocationSize(std::max(bufferSize, memoryRequirements.size))
-    .setMemoryTypeIndex([&]() {
-      // Get memory types supported by the physical device:
-      auto memoryProperties = mPhysicalDevice.getMemoryProperties();
+vk::MemoryAllocateInfo vklCreateMemoryAllocateInfo(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags memoryPropertyFlags) {
+	auto memoryAllocInfo = vk::MemoryAllocateInfo{}
+		.setAllocationSize(std::max(bufferSize, memoryRequirements.size))
+		.setMemoryTypeIndex([&]() {
+			// Get memory types supported by the physical device:
+			auto memoryProperties = mPhysicalDevice.getMemoryProperties();
 
-      // In search for a suitable memory type INDEX:
-      for (uint32_t i = 0u; i < memoryProperties.memoryTypeCount; ++i) {
+			// In search for a suitable memory type INDEX:
+			int selectedMemIndex = -1;
+			vk::DeviceSize selectedHeapSize = 0;
+			for (int i = 0; i < static_cast<int>(memoryProperties.memoryTypeCount); ++i) {
 
-        // Is this kind of memory suitable for our buffer?
-        const auto bitmask = memoryRequirements.memoryTypeBits;
-        const auto bit = 1 << i;
-        if (0 == (bitmask & bit)) {
-          continue; // => nope
-        }
+				// Is this kind of memory suitable for our buffer?
+				const auto bitmask = memoryRequirements.memoryTypeBits;
+				const auto bit = 1 << i;
+				if (0 == (bitmask & bit)) {
+					continue; // => nope
+				}
 
-        // Does this kind of memory support our usage requirements?
-        if ((memoryProperties.memoryTypes[i].propertyFlags & (vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent))
-            != vk::MemoryPropertyFlags{}) {
-          // Return the INDEX of a suitable memory type
-          return i;
-        }
-      }
-      VKL_EXIT_WITH_ERROR(std::string("ERROR: Couldn't find suitable memory of size[") + std::to_string(bufferSize) + "] and requirements[" + std::to_string(memoryRequirements.alignment) + ", " + std::to_string(memoryRequirements.memoryTypeBits) + ", " + std::to_string(memoryRequirements.size) + "]");
-	}());
-  return memoryAllocInfo;
+				// Does this kind of memory support our usage requirements?
+				if ((memoryProperties.memoryTypes[i].propertyFlags & (memoryPropertyFlags)) != vk::MemoryPropertyFlags{}) {
+					// Would support => now select the one with the largest heap:
+					const auto heapSize = memoryProperties.memoryHeaps[memoryProperties.memoryTypes[i].heapIndex].size;
+					if (heapSize > selectedHeapSize) {
+						// We have a new king:
+						selectedMemIndex = i;
+						selectedHeapSize = heapSize;
+					}
+				}
+			}
+
+			if (-1 == selectedMemIndex) {
+				VKL_EXIT_WITH_ERROR(std::string("ERROR: Couldn't find suitable memory of size[") + std::to_string(bufferSize) + "] and requirements[" + std::to_string(memoryRequirements.alignment) + ", " + std::to_string(memoryRequirements.memoryTypeBits) + ", " + std::to_string(memoryRequirements.size) + "]");
+			}
+
+			// all good, we found a suitable memory index:
+			return static_cast<uint32_t>(selectedMemIndex);
+		}());
+	return memoryAllocInfo;
 }
 
-VkMemoryAllocateInfo vklCreateMemoryAllocateInfo(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements) {
-  return static_cast<VkMemoryAllocateInfo>(vklCreateMemoryAllocateInfo(static_cast<vk::DeviceSize>(bufferSize), static_cast<vk::MemoryRequirements>(memoryRequirements)));
+VkMemoryAllocateInfo vklCreateMemoryAllocateInfo(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags memoryPropertyFlags) {
+  return static_cast<VkMemoryAllocateInfo>(vklCreateMemoryAllocateInfo(static_cast<vk::DeviceSize>(bufferSize), static_cast<vk::MemoryRequirements>(memoryRequirements), static_cast<vk::MemoryPropertyFlags>(memoryPropertyFlags)));
 }
 
-VkDeviceMemory vklAllocateHostCoherentMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements)
+VkDeviceMemory vklAllocateMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags memoryPropertyFlags)
 {
-    const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements);
+    const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements, memoryPropertyFlags);
 
 	// Allocate:
 	VkDeviceMemory memory;
@@ -676,8 +701,8 @@ VkDeviceMemory vklAllocateHostCoherentMemoryForGivenRequirements(VkDeviceSize bu
 	}
 }
 
-vk::UniqueDeviceMemory vklAllocateHostCoherentMemoryForGivenRequirements(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements) {
-  const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements);
+vk::UniqueDeviceMemory vklAllocateMemoryForGivenRequirements(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags memoryPropertyFlags) {
+  const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements, memoryPropertyFlags);
   auto allocatedMemory = mDevice.allocateMemoryUnique(memoryAllocInfo, nullptr, mDispatchLoader);
   return allocatedMemory;
 }
@@ -695,7 +720,7 @@ VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, 
 	auto buffer = mDevice.createBuffer(createInfo);
 
 	// Allocate the memory (we want host-coherent memory):
-    auto memory = vklAllocateHostCoherentMemoryForGivenRequirements(static_cast<vk::DeviceSize>(buffer_size), mDevice.getBufferMemoryRequirements(buffer));
+    auto memory = vklAllocateMemoryForGivenRequirements(static_cast<vk::DeviceSize>(buffer_size), mDevice.getBufferMemoryRequirements(buffer), vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     
 	// Bind the buffer handle to the memory:
 	// mDevice.bindBufferMemory(buffer, memory.get(), 0);
@@ -703,6 +728,31 @@ VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, 
 
 	// Remember the assignment:
 	mHostCoherentBuffersWithBackingMemory[static_cast<VkBuffer>(buffer)] = std::move(memory);
+
+	return static_cast<VkBuffer>(buffer);
+}
+
+VkBuffer vklCreateDeviceLocalBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage)
+{
+	if (!vklFrameworkInitialized()) {
+		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
+	}
+
+	// Describe a new buffer:
+	auto createInfo = vk::BufferCreateInfo{}
+		.setSize(static_cast<vk::DeviceSize>(buffer_size))
+		.setUsage(vk::BufferUsageFlags{ buffer_usage });
+	auto buffer = mDevice.createBuffer(createInfo);
+
+	// Allocate the memory (we want device-local memory):
+	auto memory = vklAllocateMemoryForGivenRequirements(static_cast<vk::DeviceSize>(buffer_size), mDevice.getBufferMemoryRequirements(buffer), vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+	// Bind the buffer handle to the memory:
+	// mDevice.bindBufferMemory(buffer, memory.get(), 0);
+	mDevice.bindBufferMemory(buffer, memory.get(), 0);
+
+	// Remember the assignment:
+	mDeviceLocalBuffersWithBackingMemory[static_cast<VkBuffer>(buffer)] = std::move(memory);
 
 	return static_cast<VkBuffer>(buffer);
 }
@@ -722,6 +772,26 @@ void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer)
 	}
 	else {
 		VKL_WARNING("VkDeviceMemory for the given VkBuffer not found. Are you sure that you have created this buffer with vklCreateHostCoherentBufferWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkBuffer?");
+	}
+
+	mDevice.destroy(vk::Buffer{ buffer });
+}
+
+void vklDestroyDeviceLocalBufferAndItsBackingMemory(VkBuffer buffer)
+{
+	if (!vklFrameworkInitialized()) {
+		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
+	}
+	if (VkBuffer{} == buffer) {
+		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklDestroyDeviceLocalBufferAndItsBackingMemory(...)");
+	}
+
+	auto search = mDeviceLocalBuffersWithBackingMemory.find(buffer);
+	if (mDeviceLocalBuffersWithBackingMemory.end() != search) {
+		mDeviceLocalBuffersWithBackingMemory.erase(search);
+	}
+	else {
+		VKL_WARNING("VkDeviceMemory for the given VkBuffer not found. Are you sure that you have created this buffer with vklCreateDeviceLocalBufferWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkBuffer?");
 	}
 
 	mDevice.destroy(vk::Buffer{ buffer });
@@ -760,7 +830,7 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
  * @param usageFlags Usage flags to use when createing the buffer.
  * @return The handle of the newly generated buffer.
  */
-VkBuffer vklCreateBufferAndUploadIntoGpuMemory(const void* data, size_t size, VkBufferUsageFlags usageFlags) {
+VkBuffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, VkBufferUsageFlags usageFlags) {
     VkBuffer result {};
     result = vklCreateHostCoherentBufferWithBackingMemory(
             static_cast<VkDeviceSize>(size),
@@ -768,13 +838,6 @@ VkBuffer vklCreateBufferAndUploadIntoGpuMemory(const void* data, size_t size, Vk
     );
     vklCopyDataIntoHostCoherentBuffer(result, data, size);
     return result;
-}
-
-void vklDestroyBufferInGpuMemory(VkBuffer buffer) {
-    if(buffer == VK_NULL_HANDLE) {
-        VKL_EXIT_WITH_ERROR("The buffer passed to vklDestroyBufferInGpuMemory(...) is NULL.");
-    }
-    vklDestroyHostCoherentBufferAndItsBackingMemory(buffer);
 }
 
 const char* vklRequiredInstanceExtensions[] = {
@@ -1348,7 +1411,7 @@ VkDevice vklGetDevice()
   return static_cast<VkDevice>(mDevice);
 }
 
-VkImage vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
+VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
 {
 	auto createInfo = vk::ImageCreateInfo{}
 		.setFlags(static_cast<vk::ImageCreateFlagBits>(flags))
@@ -1369,28 +1432,42 @@ VkImage vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevi
 	auto memoryAllocInfo = vk::MemoryAllocateInfo{}
 		.setAllocationSize(memoryRequirements.size)
 		.setMemoryTypeIndex([&]() {
-		// Get memory types supported by the physical device:
-		auto memoryProperties = vk::PhysicalDevice{ physical_device }.getMemoryProperties();
+			// Get memory types supported by the physical device:
+			auto memoryProperties = vk::PhysicalDevice{ physical_device }.getMemoryProperties();
 
-		// In search for a suitable memory type INDEX:
-		for (uint32_t i = 0u; i < memoryProperties.memoryTypeCount; ++i) {
+			// In search for a suitable memory type INDEX:
+			int selectedMemIndex = -1;
+			vk::DeviceSize selectedHeapSize = 0;
+			for (int i = 0; i < static_cast<int>(memoryProperties.memoryTypeCount); ++i) {
 
-			// Is this kind of memory suitable for our buffer?
-			const auto bitmask = memoryRequirements.memoryTypeBits;
-			const auto bit = 1 << i;
-			if (0 == (bitmask & bit)) {
-				continue; // => nope
+				// Is this kind of memory suitable for our buffer?
+				const auto bitmask = memoryRequirements.memoryTypeBits;
+				const auto bit = 1 << i;
+				if (0 == (bitmask & bit)) {
+					continue; // => nope
+				}
+
+				// Does this kind of memory support our usage requirements?
+
+				// In contrast to our host-coherent buffers, we just assume that we want all our images to live in device memory:
+				if ((memoryProperties.memoryTypes[i].propertyFlags & vk::MemoryPropertyFlagBits::eDeviceLocal) != vk::MemoryPropertyFlags{}) {
+					// Would support => now select the one with the largest heap:
+					const auto heapSize = memoryProperties.memoryHeaps[memoryProperties.memoryTypes[i].heapIndex].size;
+					if (heapSize > selectedHeapSize) {
+						// We have a new king:
+						selectedMemIndex = i;
+						selectedHeapSize = heapSize;
+					}
+				}
 			}
 
-			// Does this kind of memory support our usage requirements?
-			if ((memoryProperties.memoryTypes[i].propertyFlags & vk::MemoryPropertyFlagBits::eDeviceLocal) // In contrast to our host-coherent buffers, we just assume that we want all our images to live in device memory
-				!= vk::MemoryPropertyFlags{}) {
-				// Return the INDEX of a suitable memory type
-				return i;
+			if (-1 == selectedMemIndex) {
+				VKL_EXIT_WITH_ERROR(std::string("ERROR: Couldn't find suitable memory for image, requirements[") + std::to_string(memoryRequirements.alignment) + ", " + std::to_string(memoryRequirements.memoryTypeBits) + ", " + std::to_string(memoryRequirements.size) + "]");
 			}
-		}
-		VKL_EXIT_WITH_ERROR("Couldn't find suitable memory.");
-	}());
+
+			// all good, we found a suitable memory index:
+			return static_cast<uint32_t>(selectedMemIndex);
+		}());
 
 	auto memory = vk::Device{ device }.allocateMemoryUnique(memoryAllocInfo, nullptr, mDispatchLoader);
 
@@ -1402,28 +1479,28 @@ VkImage vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevi
 	return static_cast<VkImage>(image);
 }
 
-VkImage vklCreateImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
+VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
 {
-	return vklCreateImageWithBackingMemory(physical_device, device, width, height, format, usage_flags, /* one layer: */ 1u, /* no flags: */{});
+	return vklCreateDeviceLocalImageWithBackingMemory(physical_device, device, width, height, format, usage_flags, /* one layer: */ 1u, /* no flags: */{});
 }
 
-VkImage vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
-{
-	if (!vklFrameworkInitialized()) {
-		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
-	}
-	return vklCreateImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags);
-}
-
-VkImage vklCreateImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
+VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
 	}
-	return vklCreateImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags, array_layers, flags);
+	return vklCreateDeviceLocalImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags);
 }
 
-void vklDestroyImageAndItsBackingMemory(VkImage image)
+VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
+{
+	if (!vklFrameworkInitialized()) {
+		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
+	}
+	return vklCreateDeviceLocalImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags, array_layers, flags);
+}
+
+void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
@@ -1437,7 +1514,7 @@ void vklDestroyImageAndItsBackingMemory(VkImage image)
 		mImagesWithBackingMemory.erase(search);
 	}
 	else {
-		VKL_WARNING("VkDeviceMemory for the given VkImage not found. Are you sure that you have created this buffer with vklCreateImageWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkImage?");
+		VKL_WARNING("VkDeviceMemory for the given VkImage not found. Are you sure that you have created this buffer with vklCreateDeviceLocalImageWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkImage?");
 	}
 
 	mDevice.destroy(vk::Image{ image });
@@ -1699,7 +1776,7 @@ glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect
 		// We are staying in right-handed (RH) coordinate systems throughout ALL the spaces.
 		// 
 		// Therefore, we are representing the coordinates from here on -- actually exactly BETWEEN View Space and
-		// Clip Space -- in a coordinate system which is rotated 180� around X, having Y point down, still RH.
+		// Clip Space -- in a coordinate system which is rotated 180 degrees around X, having Y point down, still RH.
 		const glm::mat4 rotateAroundXFrom_RH_Yup_to_RH_Ydown = glm::mat4{
 			 glm::vec4{ 1.f,  0.f,  0.f,  0.f},
 			-glm::vec4{ 0.f,  1.f,  0.f,  0.f},
