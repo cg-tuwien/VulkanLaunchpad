@@ -2,28 +2,23 @@
 
 A framework by TU Wien targeted at Vulkan beginners. It abstracts some of the hard and overly verbose parts of the Vulkan C API and can help to boost your learning progress early on. 
 
-## Setup Instructions
+# Setup Instructions
 
 Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/), and optimally an integrated development environment (IDE). In the following, we describe setup instructions for common operating systems and editors/IDEs (click the links in the table of contents to jump to the sections that are relevant to your chosen setup):
-- [Vulkan Launchpad :rocket:](#vulkan-launchpad-rocket)
-	- [Setup Instructions](#setup-instructions)
-	- [Operating Systems](#operating-systems)
-		- [Windows](#windows)
-		- [macOS](#macos)
-		- [Linux](#linux)
-			- [Dependencies](#dependencies)
-				- [Ubuntu 22.04](#ubuntu-2204)
-				- [Ubuntu 20.04](#ubuntu-2004)
-				- [Linux Mint 21.1](#linux-mint-211)
-				- [Debian Bullseye](#debian-bullseye)
-				- [Automatic Git Clone and Build via Commandline](#automatic-git-clone-and-build-via-commandline)
-	- [Editors and IDEs](#editors-and-ides)
-		- [Visual Studio Code (VS Code)](#visual-studio-code-vs-code)
-		- [Visual Studio 2022 Community](#visual-studio-2022-community)
-		- [Xcode](#xcode)
-		- [Other](#other)
-	- [Troubleshooting](#troubleshooting)
-		- [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
+    - [Operating Systems](#operating-systems)
+        - [Windows](#windows)
+        - [macOS](#macos)
+        - [Linux](#linux)
+        - [Ubuntu and Linux Mint](#ubuntu-and-linux-mint)
+        - [Fedora Workstation](#fedora-workstation)
+        - [Manjaro](#manjaro)
+    - [Editors and IDEs](#editors-and-ides)
+        - [Visual Studio Code (VS Code)](#visual-studio-code-vs-code)
+        - [Visual Studio 2022 Community](#visual-studio-2022-community)
+    - [Xcode](#xcode)
+    - [Other IDEs](#other-ides)
+    - [Troubleshooting](#troubleshooting)
+        - [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
 - [Documentation](#documentation)
 
 ## Operating Systems
@@ -42,131 +37,47 @@ Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Gi
 
 ### macOS
 
-TODO
+- Download and install [Xcode](https://apps.apple.com/us/app/xcode/id497799835) from the Mac App Store!
+  - Install the `Xcode Command Line Tools` by executing `xcode-select --install` from command line. This will install `Git` on your system.
+- Download and install one of the latest [Vulkan SDKs for macOS](https://vulkan.lunarg.com/sdk/home#mac)! (At time of writing, the most recent version is 1.3.236.0.)
+  - _Note:_ If you are using a Mac which runs on Apple silicon, it could happen that a popup asks you to install Rosetta. Please confirm, even though we are going to use native Apple silicon libraries.
+  - _Important:_ Make sure to tick the box called `System Global Installation` during installation so the Vulkan SDK can be found by the build system.
+- Download and install CMake through its [macOS universal Installer](https://cmake.org/download/) or through a package manager like [Homebrew](https://formulae.brew.sh/formula/cmake)!
+  - _Note:_ The official website installer will not automatically add CMake to the system PATH. If you are planning to use CMake from the command line, you need to open the CMake app, go to `Tools -> How to Install For Command Line Use` and execute one of the three instructions listed.
+  - _Important:_ Ensure to get CMake version `3.22` or newer!
 
 ### Linux
 
-#### Dependencies
+Requirements: C++ Compiler, [Git](https://git-scm.com/), [CMake](https://cmake.org/), [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#linux), [X.Org](https://www.x.org/wiki/) and Vulkan compatible driver.
 
-We tested the compilation on the four different Linux distributions below.
-Each of them has slightly different requirements, however the lines of bash code boil down to:
+In case you want to use [Ninja](https://ninja-build.org/) or other development tools please install them separately. The instructions below are the minimum dependencies to build Vulkan Launchpad.
 
-1. Installs necessary apt packages to be able to download and install and maybe also build further dependencies.
-2. Adds required repositories to the list of package sources (`/etc/apt/sources.list`) via the command `apt-add-repository` or by directly downloading them to `/etc/apt/sources.list.d/`, to be able to install CMake and Vulkan and graphics drivers on Linux. `ppa:ubuntu-toolchain-r` contains gcc.
-3. Updates the apt cache with the new sources, upgrade existing packages to the latest stable versions and install all necessary build-tools and drivers as well as the Vulkan SDK and CMake. This step also installs project library dependencies like glfw, which are usually installed system-wide on Linux distros.
-4. Updates the default gcc and g++ version to the freshly installed version 11.
-5. Invokes `vulkaninfo` to see if the Vulkan SDK and graphics drivers are installed correctly.
+#### Ubuntu and Linux Mint
+```bash
+# Add LunarG public key
+wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
 
-##### Ubuntu 22.04
+# Add Vulkan package
+# Jammy Jellyfish (Ubuntu 22.04/22.10 and Linux Mint 21.0/21.1)
+sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.236-jammy.list https://packages.lunarg.com/vulkan/1.3.236/lunarg-vulkan-1.3.236-jammy.list
+# Focal Fossa (Ubuntu 20.04/20.10 and Linux Mint 20.0/20.1/20.2/20.3)
+sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.236-focal.list https://packages.lunarg.com/vulkan/1.3.236/lunarg-vulkan-1.3.236-focal.list
 
-```
-#!/bin/bash
-set -e -o pipefail
-
-sudo apt update && sudo apt upgrade -y && sudo apt install -y wget gpg lsb-release software-properties-common
-
-wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
-sudo rm /etc/apt/trusted.gpg.d/kitware.gpg && sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6AF7F09730B3F0A4
-sudo apt-add-repository -y "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
-sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-sudo add-apt-repository -y ppa:oibaf/graphics-drivers
-wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | tee /etc/apt/trusted.gpg.d/lunarg.asc
-wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
-
-sudo apt update && sudo apt upgrade -y && sudo apt install -y  g++ gdb make ninja-build rsync zip kitware-archive-keyring cmake libassimp-dev g++-11 libvulkan-dev libvulkan1 mesa-vulkan-drivers vulkan-tools vulkan-sdk dpkg-dev libvulkan1-dbgsym vulkan-tools-dbgsym libglfw3 libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev libglew-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
-sudo apt clean all
-
-sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 60 --slave /usr/bin/g++ g++ /usr/bin/g++-11
-
-echo ""
-echo "Now running \"vulkaninfo\" to see if vulkan has been installed successfully:"
-vulkaninfo
+# Update package manager
+sudo apt update
+# Install dependencies
+sudo apt install git cmake build-essential xorg-dev libvulkan-dev vulkan-headers vulkan-validationlayers
 ```
 
-##### Ubuntu 20.04
-
-_Note:_ Only tested in a Docker environment.
-
-```
-sudo apt update && sudo apt upgrade -y && sudo apt install -y wget gpg git lsb-release software-properties-common && \
-	wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
-	sudo rm /etc/apt/trusted.gpg.d/kitware.gpg && sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6AF7F09730B3F0A4 && \
-	sudo apt-add-repository -y "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" && \
-	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
-	sudo add-apt-repository -y ppa:oibaf/graphics-drivers && \
-	wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | tee /etc/apt/trusted.gpg.d/lunarg.asc && \
-	wget -qO /etc/apt/sources.list.d/lunarg-vulkan-focal.list http://packages.lunarg.com/vulkan/lunarg-vulkan-focal.list && \
-	sudo apt update && sudo apt upgrade -y && sudo apt install -y g++ gdb make ninja-build rsync zip kitware-archive-keyring cmake libassimp-dev g++-11 libvulkan-dev libvulkan1 mesa-vulkan-drivers vulkan-tools vulkan-sdk dpkg-dev libvulkan1-dbgsym vulkan-tools-dbgsym libglfw3 libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev libglew-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev && \
-	sudo apt clean all && \
-	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 60 --slave /usr/bin/g++ g++ /usr/bin/g++-11
+#### Fedora Workstation
+```bash
+sudo dnf install cmake gcc-c++ libXinerama-devel vulkan-loader-devel vulkan-headers vulkan-validation-layers-devel
+sudo dnf -y groupinstall "X Software Development"
 ```
 
-##### Linux Mint 21.1
-
-_Note:_ Only tested in a Docker environment.
-
-```
-sudo apt update && sudo apt upgrade -y && sudo apt install -y mint-dev-tools build-essential devscripts fakeroot quilt dh-make automake libdistro-info-perl less nano ubuntu-dev-tools python3 \
-		wget git gpg lsb-release software-properties-common && \
-	wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
-	sudo rm /etc/apt/trusted.gpg.d/kitware.gpg && sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6AF7F09730B3F0A4 && \
-	sudo apt-add-repository -y "deb https://apt.kitware.com/ubuntu/ jammy main" && \
-	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
-	sudo add-apt-repository -y ppa:oibaf/graphics-drivers && \
-	wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | tee /etc/apt/trusted.gpg.d/lunarg.asc && \
-	wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list && \
-	sudo apt update && sudo apt upgrade -y && sudo apt install -y  g++ gdb make ninja-build rsync zip kitware-archive-keyring cmake libassimp-dev g++-11 libvulkan-dev libvulkan1 mesa-vulkan-drivers vulkan-tools vulkan-sdk dpkg-dev libvulkan1-dbgsym vulkan-tools-dbgsym libglfw3 libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev libglew-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev && \
-	sudo apt clean all && \
-	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 60 --slave /usr/bin/g++ g++ /usr/bin/g++-11
-```
-
-##### Debian Bullseye
-
-_Note:_ Only tested in a Docker environment.
-
-```
-sudo apt update && sudo apt upgrade -y && sudo apt install -y wget sudo gpg git lsb-release software-properties-common build-essential checkinstall zlib1g-dev libssl-dev g++ gdb make ninja-build rsync zip bison libx11-xcb-dev libxkbcommon-dev libwayland-dev libxrandr-dev libxcb-randr0-dev autotools-dev libxcb-keysyms1 libxcb-keysyms1-dev libxcb-ewmh-dev pkg-config libglfw3 libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev libglew-dev libxinerama-dev libxcursor-dev libxcb-cursor-dev libxi-dev && \
-	wget -q https://github.com/Kitware/CMake/releases/download/v3.25.1/cmake-3.25.1.tar.gz && \
-	tar -zxvf cmake-3.25.1.tar.gz && cd cmake-3.25.1 && ./bootstrap && make -j12 && make install
-
-	# Individual Vulkan repos below:
-	# 1. https://github.com/KhronosGroup/Vulkan-Loader/blob/master/BUILD.md#building-on-linux
-	#apt install -y git build-essential libx11-xcb-dev libxkbcommon-dev libwayland-dev libxrandr-dev
-	#cd / && git clone https://github.com/KhronosGroup/Vulkan-Loader.git && cd Vulkan-Loader && mkdir build && cd build && cmake -DUPDATE_DEPS=ON .. && make
-
-	# 2. https://github.com/KhronosGroup/Vulkan-ValidationLayers/blob/master/BUILD.md#building-on-linux
-	#apt install -y pkg-config git build-essential libx11-xcb-dev libxkbcommon-dev libwayland-dev libxrandr-dev libegl1-mesa-dev python3-distutils
-	#cd / && git clone https://github.com/KhronosGroup/Vulkan-ValidationLayers.git && cd Vulkan-ValidationLayers && mkdir build && cd build && cmake -DUPDATE_DEPS=ON .. && make
-
-	# 3. https://github.com/LunarG/gfxreconstruct/blob/dev/BUILD.md#building-for-linux
-	#apt install -y git build-essential libx11-xcb-dev libxcb-keysyms1-dev libwayland-dev libxrandr-dev zlib1g-dev liblz4-dev libzstd-dev
-	#git clone https://github.com/LunarG/gfxreconstruct.git && cd gfxreconstruct && git submodule update --init --recursive && mkdir build && cd build && cmake .. && make
-
-	# This one repo includes the ones above as submodules anyways:
-	# 4. https://github.com/LunarG/VulkanTools/blob/master/BUILD.md
-git clone https://github.com/LunarG/VulkanTools.git && cd VulkanTools && git submodule update --init --recursive && mkdir build && ./update_external_sources.sh && cd build && python3 ../scripts/update_deps.py && cmake -C helper.cmake .. && cmake --build . --parallel
-```
-
-Build:
-
-```
-git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
-	cd VulkanLaunchpadStarter && \
-	git checkout initialize-repo && \
-	mkdir out && cd out && \
-	cmake -DVulkan_INCLUDE_DIR=/VulkanTools/build/Vulkan-Headers/build/install/include/ -DVulkan_LIBRARY=/VulkanTools/build/Vulkan-Loader/build/install/lib/libvulkan.so -G Ninja .. && \
-	cmake --build . --config Debug
-```
-
-##### Automatic Git Clone and Build via Commandline
-
-```
-git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
-	cd VulkanLaunchpadStarter && \
-	git checkout initialize-repo && \
-	mkdir out && cd out && \
-	cmake -G Ninja .. && \
-	cmake --build . --config Debug
+#### Manjaro
+```bash
+sudo pacman -Sy cmake base-devel vulkan-validation-layers
 ```
 
 ## Editors and IDEs
@@ -204,22 +115,22 @@ git clone https://github.com/cg-tuwien/VulkanLaunchpadStarter.git && \
 
 ### Xcode
 - Download and install [Xcode](https://apps.apple.com/us/app/xcode/id497799835) from the Mac App Store!
-- Generate the Xcode project files!
-  - Command line Option
+- Generate the Xcode project files:
+  - Command line option:
     - Open a terminal window at the workspace root directory. This can be done by right clicking the folder and selecting `New Terminal at Folder`.
     - Option 1: Execute `make` from the terminal. This uses the included `makefile` located in the workspace root directory. Project files can be found in `_project` afterwards.
     - Option 2: Execute `cmake -H. -B_project -G "Xcode" -DCMAKE_INSTALL_PREFIX="_install"` from the terminal.
-  - CMake Gui Option
+  - CMake Gui option:
     - Open the CMake Gui and specify the workspace root directory as the source directory. Specify a folder into which the generated project files should be stored. Click `Configure`, select Xcode as the Generator and press `Done`. After completion, press `Generate`.
 - Open `VulkanLaunchpad.xcodeproj` with Xcode. The file should be located in the folder into which the project files were generated.
 
-### Other
-Even though other CMake compatible IDEs like CLion or Qt Creator should also work, it is difficult for us to test them all. In case you want to use an IDE not tested by us, consider the following remarks for the setup process.
+### Other IDEs
+Other IDEs (such as [CLion](https://www.jetbrains.com/clion/) or [Qt Creator](https://www.qt.io/product/development-tools)) are usable too as long as they support CMake. Please consider the following remarks for the setup process:
 - Make sure to set the working directory to the workspace directory.
 
 ## Troubleshooting
 
-### Submodule Updates Take a Long Time
+#### Submodule Updates Take a Long Time
 
 In case you experience problems concerning the submodule checkout, i.e. the cloning of the submodules (GLFW, GLM or glslang) takes a long time or seems to be stuck, please try the following approach:
 * Please clone the repo manually in a terminal in a new location using the following git commands:     
