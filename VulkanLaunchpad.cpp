@@ -1088,8 +1088,8 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	if (mHasDepthAttachments) {
 		mSrcStages0 |= (vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests);
 		mSrcAccess0 |= (vk::AccessFlagBits::eDepthStencilAttachmentWrite);
-		mDstStages0 |= (vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests);
-		mDstAccess0 |= (vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite);
+		mDstStages0 |= (vk::PipelineStageFlagBits::eEarlyFragmentTests  | vk::PipelineStageFlagBits::eLateFragmentTests    | vk::PipelineStageFlagBits::eColorAttachmentOutput);
+		mDstAccess0 |= (vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eColorAttachmentWrite        );
 	}
 	// We don't really need to synchronize on the COLOR_ATTACHMENT_OUTPUT stage since actually our fences ensure that we do not reuse the same swap chain image.
 	// Therefore, this should be fine.
@@ -1099,19 +1099,19 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	//        this renderpass, and another with whatever comes after this renderpass in a queue.
 	std::array<vk::SubpassDependency, 2> subpassDependencies{
 		vk::SubpassDependency{}
-		// Establish proper dependencies with whatever comes before (which is the imageAvailableSemaphore wait and then the command buffer that copies an explosion image to the swapchain image):
+			// Establish proper dependencies with whatever comes before (which is the imageAvailableSemaphore wait and then the command buffer that copies an explosion image to the swapchain image):
 			.setSrcSubpass(VK_SUBPASS_EXTERNAL) /* -> */ .setDstSubpass(0u)
 			.setSrcStageMask(mSrcStages0) /* -> */ .setDstStageMask(mDstStages0)
 			.setSrcAccessMask(mSrcAccess0) /* -> */ .setDstAccessMask(mDstAccess0)
 	,	vk::SubpassDependency{}
-		// Establish proper dependencies with whatever comes after (which is the renderFinishedSemaphore signal):
-														 .setSrcSubpass(0u) /* -> */ .setDstSubpass(VK_SUBPASS_EXTERNAL)
-		//     Execution may continue as soon as the eColorAttachmentOutput stage is done.
-		//     However, nothing must really wait on that stage, because afterwards comes the semaphore. Hence, eBottomOfPipe.
-		.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput) /* -> */ .setDstStageMask(vk::PipelineStageFlagBits::eBottomOfPipe)
-		//     The graphics pipeline is performing eColorAttachmentWrites. These need to be made available.
-		//     We don't have to make them visible to anything, because the semaphore performs a full memory barrier anyways. 
-			   .setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite) /* -> */ .setDstAccessMask(vk::AccessFlags{})
+			// Establish proper dependencies with whatever comes after (which is the renderFinishedSemaphore signal):
+			.setSrcSubpass(0u) /* -> */ .setDstSubpass(VK_SUBPASS_EXTERNAL)
+			//     Execution may continue as soon as the eColorAttachmentOutput stage is done.
+			//     However, nothing must really wait on that stage, because afterwards comes the semaphore. Hence, eBottomOfPipe.
+			.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput) /* -> */ .setDstStageMask(vk::PipelineStageFlagBits::eBottomOfPipe)
+			//     The graphics pipeline is performing eColorAttachmentWrites. These need to be made available.
+			//     We don't have to make them visible to anything, because the semaphore performs a full memory barrier anyways. 
+			.setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite) /* -> */ .setDstAccessMask(vk::AccessFlags{})
 	};
 
 	auto renderpassCreateInfo = vk::RenderPassCreateInfo{}
@@ -1440,7 +1440,7 @@ VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_dev
 			vk::DeviceSize selectedHeapSize = 0;
 			for (int i = 0; i < static_cast<int>(memoryProperties.memoryTypeCount); ++i) {
 
-				// Is this kind of memory suitable for our buffer?
+				// Is this kind of memory suitable for our image?
 				const auto bitmask = memoryRequirements.memoryTypeBits;
 				const auto bit = 1 << i;
 				if (0 == (bitmask & bit)) {
