@@ -4,22 +4,23 @@ A framework by TU Wien targeted at Vulkan beginners. It abstracts some of the ha
 
 # Setup Instructions
 
-Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/), and optimally an integrated development environment (IDE). In the following, we describe setup instructions for common operating systems and editors/IDEs (click the links in the table of contents to jump to the sections that are relevant to your chosen setup):
-    - [Operating Systems](#operating-systems)
-        - [Windows](#windows)
-        - [macOS](#macos)
-        - [Linux](#linux)
+Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/), and optimally an integrated development environment (IDE). In the following, we describe setup instructions for common operating systems and editors/IDEs (click the links in the table of contents to jump to the sections that are relevant to your chosen setup):           
+- [Operating Systems](#operating-systems)
+    - [Windows](#windows)
+    - [macOS](#macos)
+    - [Linux](#linux)
         - [Ubuntu and Linux Mint](#ubuntu-and-linux-mint)
         - [Fedora Workstation](#fedora-workstation)
         - [Manjaro](#manjaro)
-    - [Editors and IDEs](#editors-and-ides)
-        - [Visual Studio Code (VS Code)](#visual-studio-code-vs-code)
-        - [Visual Studio 2022 Community](#visual-studio-2022-community)
+- [Editors and IDEs](#editors-and-ides)
+    - [Visual Studio Code (VS Code)](#visual-studio-code-vs-code)
+    - [Visual Studio 2022 Community](#visual-studio-2022-community)
     - [Xcode](#xcode)
     - [Other IDEs](#other-ides)
-    - [Troubleshooting](#troubleshooting)
-        - [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
+- [Troubleshooting](#troubleshooting)
+    - [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
 - [Documentation](#documentation)
+
 
 ## Operating Systems
 
