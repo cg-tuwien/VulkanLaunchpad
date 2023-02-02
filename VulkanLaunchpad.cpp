@@ -1051,6 +1051,8 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 						(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT & attachments_i[j].imageUsage) != 0
 						? vk::ImageLayout::eDepthStencilAttachmentOptimal // When the renderpass finishes, in which layout shall the image be transferred? => It will be in eDepthStencilAttachmentOptimal layout anyways.
 						: vk::ImageLayout::ePresentSrcKHR)
+					.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+					.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
 				);
 				
 				if ((VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT & attachments_i[j].imageUsage) != 0) {
