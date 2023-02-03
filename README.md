@@ -21,6 +21,8 @@ Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Gi
     - [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
 - [Documentation](#documentation)
 
+**Starter Template:**       
+For a quick project setup of an executable that links Vulkan Launchpad, we provide a starter template at [github.com/cg-tuwien/VulkanLaunchpadStarter](https://github.com/cg-tuwien/VulkanLaunchpadStarter).
 
 ## Operating Systems
 
@@ -136,7 +138,7 @@ Other IDEs (such as [CLion](https://www.jetbrains.com/clion/) or [Qt Creator](ht
 In case you experience problems concerning the submodule checkout, i.e. the cloning of the submodules (GLFW, GLM or glslang) takes a long time or seems to be stuck, please try the following approach:
 * Please clone the repo manually in a terminal in a new location using the following git commands:     
     ```bash
-    git clone --recurse-submodules https://github.com/cg-tuwien/VulkanLaunchpadStarter.git
+    git clone --recurse-submodules https://github.com/cg-tuwien/VulkanLaunchpad.git
     ```
 
 # Documentation
