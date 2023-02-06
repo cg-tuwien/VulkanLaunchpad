@@ -5,6 +5,7 @@
 #include "VulkanLaunchpad.h"
 #include <vulkan/vulkan.hpp>
 #include <unordered_map>
+#include <map>
 #include <deque>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tinyobjloader/tiny_obj_loader.h>
@@ -1828,14 +1829,6 @@ std::string loadModelFromFile(const std::string& model_filename)
 	return content;
 }
 
-std::size_t checkIndices(int const& vertex, int const& normal, int const& uv) {
-	std::size_t h = 0;
-	h = (h * 37) + std::hash<int>()(vertex);
-	h = (h * 37) + std::hash<int>()(normal);
-	h = (h * 37) + std::hash<int>()(uv);
-	return h;
-}
-
 VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 {
 	tinyobj::attrib_t attributes;
@@ -1849,8 +1842,9 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 	}
 
 	VklGeometryData data;
-	std::unordered_map<std::size_t, uint32_t> uniqueVertices;
 	for (const tinyobj::shape_t& shape : shapes) {
+        std::map<std::tuple<int, int, int>, uint32_t> uniqueVertices;
+        
 		for (const auto& indices : shape.mesh.indices) {
 			glm::vec3 pos = glm::vec3(
 				attributes.vertices[3 * indices.vertex_index], 
@@ -1866,15 +1860,17 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 				attributes.normals[3 * indices.normal_index + 1], 
 				attributes.normals[3 * indices.normal_index + 2]
 			);
-
-			std::size_t hash = checkIndices(indices.vertex_index, indices.normal_index, indices.texcoord_index);
-			if (uniqueVertices.count(hash) == 0) {
-				uniqueVertices[hash] = static_cast<uint32_t>(data.positions.size());
-				data.positions.push_back(pos);
-				data.textureCoordinates.push_back(uv);
+            
+            std::tuple<int,int,int> tuple = std::tuple<int,int,int>
+                (indices.vertex_index, indices.normal_index, indices.texcoord_index);
+            
+            if (uniqueVertices.find(tuple) == uniqueVertices.end()) {
+                uniqueVertices.insert({tuple, static_cast<uint32_t>(data.positions.size())});
+                data.positions.push_back(pos);
+                data.textureCoordinates.push_back(uv);
 				data.normals.push_back(normal);
 			}
-			data.indices.push_back(uniqueVertices[hash]);
+			data.indices.push_back(uniqueVertices[tuple]);
 		}
 	}
 	return data;
