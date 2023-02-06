@@ -226,8 +226,10 @@ For loading 3D Models, Vulkan Launchpad provides the following utility functions
     The following 3D model format is supported: OBJ.
 
 For loading DDS images, Vulkan Launchpad provides the following utility functions:
-- `vklGetDdsImageInfo`: Load meta data of a DDS image
-- `vklLoadDdsImageIntoHostCoherentBuffer`: Load an image into a buffer, which has its backing memory in the "host-coherent" memory region.
+- `vklGetDdsImageInfo`: Load meta data of a DDS image (of MIP-map level 0, if there are any).
+- `vklGetDdsImageLevelInfo`: Load the meta data of a specific MIP-map level of a DDS image.
+- `vklLoadDdsImageIntoHostCoherentBuffer`: Load an image into a buffer, which has its backing memory in the "host-coherent" memory region. If the DDS contains MIP-map levels, it will load level 0.
+- `vklLoadDdsImageLevelIntoHostCoherentBuffer`: Load a specific MIP-map level of an image into a buffer, which has its backing memory in the "host-coherent" memory region.
 
 #### Logging and Error Checking
 
