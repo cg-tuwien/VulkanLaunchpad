@@ -195,7 +195,7 @@ For testing purposes, Vulkan Launchpad will automatically create a basic pipelin
 
 For creating custom pipelines, the following functionality is provided:
 - `vklCreateGraphicsPipeline`: Create your own graphics pipeline, which must be supplied with a `VklGraphicsPipelineConfig` struct, allowing to specify selected pipeline configuration options. 
-- `vklDestroyGraphicsPipeline: Corresponding :point_up_2: cleanup function. 
+- `vklDestroyGraphicsPipeline`: Corresponding :point_up_2: cleanup function. 
 - `struct VklGraphicsPipelineConfig`: Allows to specifiy paths to vertex and fragment shader files, definition of the input buffer(s), description of the input attribute(s), the polygon draw and triangle culling mode, the descriptor set layout bindings (e.g. for uniform buffers), and a flag that allows to enable alpha blending.
 
 To bind a single `VkDescriptorSet` to a `VkPipelineLayout`, the framework offers a convenience function `vklBindDescriptorSetToPipeline`, which will take a `VkDescriptorSet` and a `VkPipeline`.
