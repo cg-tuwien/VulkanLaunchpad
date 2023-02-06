@@ -141,6 +141,17 @@ In case you experience problems concerning the submodule checkout, i.e. the clon
     git clone --recurse-submodules https://github.com/cg-tuwien/VulkanLaunchpad.git
     ```
 
+#### On macOS: CMake cannot find C/CXX compiler
+
+In case you had an existing XCode Command Line Tools installation, this error may occur during cmake generation. You can try:
+    ```bash
+    xcode-select --reset
+    ```
+    
+#### On macOS: CMake cannot find Vulkan
+
+This may be the case, if you forgot to select `System Global Installation` during the Vulkan SDK installation, leading to errors during cmake generation, as the location of the Vulkan libraries cannot be found. You can install it retroactively by executing the `MaintainanceTool.app` in the `VulkanSDK` folder and selecting `System Global Installation` as a component to add.
+
 # Documentation
 
 TODO
