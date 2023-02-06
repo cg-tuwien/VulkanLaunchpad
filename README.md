@@ -155,7 +155,7 @@ Function names are in lowerCamelCase starting with the prefix `vkl`. Structs and
 
 ### Functionality
 
-The framework needs to be initinilized by calling `vklInitFramework`. Subsequently, it needs to be destroyed via `vklDestroyFramework`. Required extensions can be queried by `vklGetRequiredInstanceExtensions`. Consistent with the Vulkan API, custom configuration structs should best be zero-initialized, although they do not require to expilictly set their instance's type:
+The framework needs to be initialized by calling `vklInitFramework`. Subsequently, it needs to be destroyed via `vklDestroyFramework`. Required extensions can be queried by `vklGetRequiredInstanceExtensions`. Consistent with the Vulkan API, custom configuration structs should best be zero-initialized, although they do not require to expilictly set their instance's type:
 
     VklSwapchainConfig swapchain_config = {};
     
