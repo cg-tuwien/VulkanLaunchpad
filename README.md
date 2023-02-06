@@ -191,9 +191,12 @@ Vulkan Launchpad provides functionality needed during a typical render loop:
 
 #### Graphics Pipelines
 
-For testing purposes, Vulkan Launchpad will automatically create a basic pipeline, which takes only vertex positions, maps them to their locations in world space without any projection or the like, and colours them red. This pipeline can be retrieved using `vklGetBasicPipeline`.
+For testing purposes, Vulkan Launchpad will automatically create a basic pipeline, which takes only vertex positions, maps them to their locations in world space without any transformation or projection, and colours them red. This pipeline can be retrieved using `vklGetBasicPipeline`.
 
-For custom programs beyond testing you will want to use the `vkl(Create/Destroy)GraphicsPipeline` pair to create your own graphics pipeline, which must be supplied with a `VklGraphicsPipelineConfig` struct detailing the pipeline configuration. The `VklGraphicsPipelineConfig` specifies the paths to vertex and fragment shader files, definition of the input buffer(s), description of the input attribute(s), the polygon draw and triangle culling mode, as well as the descriptor set layout bindings (e.g. for uniform buffers).
+For creating custom pipelines, the following functionality is provided:
+- `vklCreateGraphicsPipeline`: Create your own graphics pipeline, which must be supplied with a `VklGraphicsPipelineConfig` struct, allowing to specify selected pipeline configuration options. 
+- `vklDestroyGraphicsPipeline: Corresponding :point_up_2: cleanup function. 
+- `struct VklGraphicsPipelineConfig`: Allows to specifiy paths to vertex and fragment shader files, definition of the input buffer(s), description of the input attribute(s), the polygon draw and triangle culling mode, the descriptor set layout bindings (e.g. for uniform buffers), and a flag that allows to enable alpha blending.
 
 To bind a single `VkDescriptorSet` to a `VkPipelineLayout`, the framework offers a convenience function `vklBindDescriptorSetToPipeline`, which will take a `VkDescriptorSet` and a `VkPipeline`.
 
