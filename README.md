@@ -171,7 +171,9 @@ Consistent with the Vulkan API, custom configuration structs should best be zero
     
 #### Extensions
 
-Required extensions can be queried by `vklGetRequiredInstanceExtensions`. The basic graphics pipeline created by the framework can be retrieved using `vklGetBasicPipeline`. To set up a custom graphics pipeline you can use `vkl(Create/Destroy)GraphicsPipeline`.
+Required extensions can be queried by `vklGetRequiredInstanceExtensions`.       
+
+_Note:_ GLFW will require further extensions. These are not included yet in the array that is returned by `vklGetRequiredInstanceExtensions`. 
 
 #### Render Loop
 
@@ -186,6 +188,15 @@ Vulkan Launchpad provides functionality needed during a typical render loop:
     vklEndRecordingCommands();
     vklPresentCurrentSwapchainImage();
 ```
+
+#### Graphics Pipelines
+
+TODO: The basic graphics pipeline created by the framework can be retrieved using `vklGetBasicPipeline`. 
+
+TODO: To set up a custom graphics pipeline you can use `vkl(Create/Destroy)GraphicsPipeline`.
+
+TODO: Briefly mention what `VklGraphicsPipelineConfig` is about!
+
 
 #### Buffers
 
