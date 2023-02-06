@@ -154,4 +154,107 @@ This may be the case, if you forgot to select `System Global Installation` durin
 
 # Documentation
 
-TODO
+### Structure
+
+- `VulkanLaunchpad.h`/`VulkanLaunchpad.cpp`: Vulkan Launchpad's main funnctionality.
+- `Camera.h`/`Camera.cpp`: Implementation of a ready-to-use orbit/arcball-style camera.
+- `external` directory: Contains the libraries GLFW, GLM and glslang as git submodules, as well as tinyobjloader and gli.
+
+### Naming Conventions
+
+The following naming conventions are used by Vulkan Launchpad:
+- Function names: lowerCamelCase, prefixed `vkl`
+- Struct names: UpperCamelCase, prefixed `Vkl`
+- Struct member variables: mCamelCase 
+- Function parameters: snake_case
+
+### Functionality
+
+#### Initialization and Destruction
+
+Vulkan Launchpad needs to be initialized by calling `vklInitFramework`.      
+Subsequently, it needs to be destroyed via `vklDestroyFramework`. 
+    
+Consistent with the Vulkan API, custom configuration structs should best be zero-initialized, although they do not require to expilictly set their instance's type:
+
+    VklSwapchainConfig swapchain_config = {};
+
+    
+#### Extensions
+
+Required extensions can be queried by `vklGetRequiredInstanceExtensions`.       
+
+_Note:_ GLFW will require further extensions. These are not included yet in the array that is returned by `vklGetRequiredInstanceExtensions`. 
+
+#### Render Loop
+
+Vulkan Launchpad provides functionality needed during a typical render loop:
+
+```cpp
+    vklWaitForNextSwapchainImage();
+    vklStartRecordingCommands();
+		
+    // Your commands here
+
+    vklEndRecordingCommands();
+    vklPresentCurrentSwapchainImage();
+```
+
+#### Graphics Pipelines
+
+For testing purposes, Vulkan Launchpad will automatically create a basic pipeline, which takes only vertex positions, maps them to their locations in world space without any transformation or projection, and colours them red. This pipeline can be retrieved using `vklGetBasicPipeline`.
+
+For creating custom pipelines, the following functionality is provided:
+- `vklCreateGraphicsPipeline`: Create your own graphics pipeline, which must be supplied with a `VklGraphicsPipelineConfig` struct, allowing to specify selected pipeline configuration options. 
+- `vklDestroyGraphicsPipeline`: Corresponding :point_up_2: cleanup function. 
+- `struct VklGraphicsPipelineConfig`: Allows to specifiy paths to vertex and fragment shader files, definition of the input buffer(s), description of the input attribute(s), the polygon draw and triangle culling mode, the descriptor set layout bindings (e.g. for uniform buffers), and a flag that allows to enable alpha blending.
+
+To bind a single `VkDescriptorSet` to a `VkPipelineLayout`, the framework offers a convenience function `vklBindDescriptorSetToPipeline`, which will take a `VkDescriptorSet` and a `VkPipeline`.
+
+#### Buffers
+
+Vulkan Launchpad can help with buffer management in different memory types, and provides some utility functions for transfering data into a buffer. 
+
+The memory types are reflected in function naming:
+- `vklCreateHostCoherentBufferWithBackingMemory`: Creates a new `VkBuffer` and allocates backing memory in the "host coherent" memory region, which is also accessible from the host. 
+- `vklCreateDeviceLocalBufferWithBackingMemory`: Creates a new `VkBuffer` and allocates memory the "device-local" memory region, which is a region that might only be accessible from the device, but not from the host (if the device supports dedicated device-local memory).
+
+The appropriate destruction functions are the following:       
+- `vklDestroyHostCoherentBufferAndItsBackingMemory` for buffers previously created with `vklCreateHostCoherentBufferWithBackingMemory`.
+- `vkDestroyDeviceLocalBufferAndItsBackingMemory` for buffers previsouly created with `vklCreateDeviceLocalBufferWithBackingMemory`. 
+
+Utility functions:      
+- `vklCopyDataIntoHostCoherentBuffer`: Copy data into a host-coherent buffer.
+- `vklCreateHostCoherentBufferAndUploadData`: Create a new host-coherent buffer and fill it with data.
+
+#### Images
+
+Vulkan Launchpad provides some utility functions for images as well:
+- `vklCreateDeviceLocalImageWithBackingMemory`: Creates a new `VkImage` and allocates backing memory in the "device-local" memory region. 
+- `vklDestroyDeviceLocalImageAndItsBackingMemory`: Corresponding destruction function.
+
+#### Resource Loading (3D Models, Textures)
+
+For loading 3D Models, Vulkan Launchpad provides the following utility functions:
+- `vklLoadModelGeometry`: Loads the (indexed) geometry of a 3D model (namely: positions, indices, normals, and texture coordinates) into host memory.       
+    The following 3D model format is supported: OBJ.
+
+For loading DDS images, Vulkan Launchpad provides the following utility functions:
+- `vklGetDdsImageInfo`: Load meta data of a DDS image (of mipmap level 0, if there are any).
+- `vklGetDdsImageLevelInfo`: Load the meta data of a specific mipmap level of a DDS image.
+- `vklLoadDdsImageIntoHostCoherentBuffer`: Load an image into a buffer, which has its backing memory in the "host-coherent" memory region. If the DDS contains mipmap levels, it will load level 0.
+- `vklLoadDdsImageLevelIntoHostCoherentBuffer`: Load a specific mipmap level of an image into a buffer, which has its backing memory in the "host-coherent" memory region.
+
+#### Logging and Error Checking
+
+The following macros are defined for logging purposes: 
+- `VKL_LOG`: Prints a log message to the console.
+- `VKL_WARNING`: Prints a warning message to the console.
+- `VKL_EXIT_WITH_ERROR`: Prints an error message to the console and terminates the program.
+
+Additionally, Vulkan Launchpad offers several possibilities to process a `VkResult`, which is returned by many Vulkan operations:
+
+- `VKL_CHECK_VULKAN_RESULT` : Evaluates a `VkResult` and displays its status.
+- `VKL_CHECK_VULKAN_ERROR` : Evaluates a `VkResult` and displays its status only if it represents an error.
+- `VKL_RETURN_ON_ERROR` : Evaluates a `VkResult` and issues a return statement if it represents an error.
+
