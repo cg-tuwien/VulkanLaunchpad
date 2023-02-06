@@ -143,4 +143,58 @@ In case you experience problems concerning the submodule checkout, i.e. the clon
 
 # Documentation
 
-TODO
+### Structure
+
+- VulkanLaunchpad.h/VulkanLaunchpad.cpp: main functionality of the framework.
+- Camera.h/Camera.cpp: implementation of an orbit/arcball camera.
+- external: contains the libraries glfw, glm and glslang as git submodules, as well as tinyobjloader and gli.
+
+### Naming Conventions
+
+Function names are in lowerCamelCase starting with the prefix `vkl`. Structs and classes are in UpperCamelCase starting with the prefix `Vkl`. Member variables are mCamelCase, function parameters are lowercase_with_underscores.
+
+### Functionality
+
+The framework needs to be initinilized by calling `vklInitFramework`. Subsequently, it needs to be destroyed via `vklDestroyFramework`. Required extensions can be queried by `vklGetRequiredInstanceExtensions`. Consistent with the Vulkan API, custom configuration structs should best be zero-initialized, although they do not require to expilictly set their instance's type:
+
+    VklSwapchainConfig swapchain_config = {};
+    
+#### General
+
+The basic graphics pipeline created by the framework can be retrieved using `vklGetBasicPipeline`. To set up a custom graphics pipeline you can use `vkl(Create/Destroy)GraphicsPipeline`.
+
+The Launchpad also provides functionality needed during a typical render loop:
+
+    vklWaitForNextSwapchainImage();
+	vklStartRecordingCommands();
+		
+    // Your commands here
+
+	vklEndRecordingCommands();
+	vklPresentCurrentSwapchainImage();
+
+#### Buffer Management
+
+The Vulkan Launchpad can help with buffer management by allocating different types of memory and transfering data to fill the buffer. Two main functions for creating a buffer are:
+
+- `vklCreateHostCoherentBufferWithBackingMemory` : Creates a new `VkBuffer` and allocates memory both on the device and in a region of so called "host coherent" memory, which is also accessible from the CPU. 
+- `vklCreateDeviceLocalBufferWithBackingMemory` : Creates a new `VkBuffer` and allocates memory in a region of so called "device-local" memory, which is a region that is not accessible from the CPU, but which is faster to access and transfer on the device.
+
+Both need to be destroyed by calling `vklDestroy(HostCoherent|DeviceLocal)BufferAndItsBackingMemory`. The host coherent buffer can be filled by calling `vklCopyDataIntoHostCoherentBuffer` or alternatively, the data can already be supplied during creation using `vklCreateHostCoherentBufferAndUploadData`.
+
+#### Images
+
+A 2D image of type `VkImage` with device local backing memory can be created by calling `vklCreateDeviceLocalImageWithBackingMemory`. DDS Images can be inspected via `vklGetDdsImageInfo` and loaded via `vklLoadDdsImageIntoHostCoherentBuffer`. Mip-Mapping and cubemaps are supported as well.
+
+#### Utils
+
+The following macros are defined for logging purposes: `VKL_LOG`, `VKL_WARNING` and `VKL_EXIT_WITH_ERROR`.
+
+Additionally, we offer several possibilities to process a `VkResult`, which is returned by most Vulkan operations:
+
+- `VKL_CHECK_VULKAN_RESULT` : Evaluates a VkResult and displays its status.
+- `VKL_CHECK_VULKAN_ERROR` : Evaluates a VkResult and displays its status only if it represents an error.
+- `VKL_RETURN_ON_ERROR` : Evaluates a VkResult and issues a return statement if it represents an error.
+
+The Launchpad can open .obj files (`vklLoadModelGeometry`) and create a perspective projection matrix given the near/far plane, aspect-ratio and field of view (`vklCreatePerspectiveProjectionMatrix`).
+
