@@ -510,7 +510,7 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromFi
 	std::ifstream infile(shader_filename);
 	if (infile.good()) {
 		path = shader_filename;
-		VKL_LOG("Loading shader file from path[" << path << "].");
+		VKL_LOG("Loading shader file from path[" << path << "]...");
 	}
 
 	if (path.empty()) { // Fail if shader file could not be found:
@@ -1676,6 +1676,16 @@ VklImageInfo vklGetDdsImageInfo(const char* file)
 
 VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level)
 {
+	{ // Just checking if we are able to open the file:
+		std::ifstream infile(file);
+		if (infile.good()) {
+			VKL_LOG("Loading DDS image file from path[" << file << "]...");
+		}
+		else { // Fail if model file could not be found:
+			VKL_EXIT_WITH_ERROR("Unable to load file[" << file << "].");
+		}
+	}
+
 #ifdef USE_GLI
 	auto imageFace = static_cast<gli::texture2d::size_type>(static_cast<size_t>(face));
 	auto imageLevel = static_cast<gli::texture2d::size_type>(static_cast<size_t>(level));
@@ -1814,7 +1824,7 @@ std::string loadModelFromFile(const std::string& model_filename)
 	std::ifstream infile(model_filename);
 	if (infile.good()) {
 		path = model_filename;
-		VKL_LOG("Loading 3D model file from path[" << path << "].");
+		VKL_LOG("Loading 3D model file from path[" << path << "]...");
 	}
 
 	if (path.empty()) { // Fail if model file could not be found:
