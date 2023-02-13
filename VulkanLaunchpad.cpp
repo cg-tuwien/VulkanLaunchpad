@@ -4,11 +4,11 @@
  */
 #include "VulkanLaunchpad.h"
 #include <vulkan/vulkan.hpp>
-#define USE_VMA
-#ifdef USE_VMA
+#ifdef VKL_HAS_VMA
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
 #endif
+
 #include <unordered_map>
 #include <map>
 #include <deque>
@@ -54,8 +54,9 @@ vk::Queue mQueue                         = {};
 VklSwapchainConfig mSwapchainConfig      = {};
 std::vector<std::vector<vk::ClearValue>> mClearValues;
 
-#ifdef USE_VMA
+#ifdef VKL_HAS_VMA
 VmaAllocator mVmaAllocator               = {};
+bool vklHasVmaAllocator()                { return VmaAllocator{} != mVmaAllocator; }
 #endif
 
 bool mFrameworkInitialized = false;
@@ -82,7 +83,7 @@ int mFrameInFlightIndex;
 uint32_t mCurrentSwapChainImageIndex;
 
 vk::UniqueCommandPool mCommandPool;
-#ifdef USE_VMA
+#ifdef VKL_HAS_VMA
 std::unordered_map<VkBuffer, std::variant<vk::UniqueDeviceMemory, VmaAllocation>> mHostCoherentBuffersWithBackingMemory;
 std::unordered_map<VkBuffer, std::variant<vk::UniqueDeviceMemory, VmaAllocation>> mDeviceLocalBuffersWithBackingMemory;
 std::unordered_map<VkImage, std::variant<vk::UniqueDeviceMemory, VmaAllocation>> mImagesWithBackingMemory;
@@ -735,8 +736,8 @@ VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, 
 		.setSize(static_cast<vk::DeviceSize>(buffer_size))
 		.setUsage(vk::BufferUsageFlags{ buffer_usage });
 
-#ifdef USE_VMA
-	if (mVmaAllocator) {
+#ifdef VKL_HAS_VMA
+	if (vklHasVmaAllocator()) {
 		VmaAllocationCreateInfo vmaBufferCreateInfo = {};
 		vmaBufferCreateInfo.usage = VMA_MEMORY_USAGE_UNKNOWN;
 		vmaBufferCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
@@ -774,8 +775,8 @@ VkBuffer vklCreateDeviceLocalBufferWithBackingMemory(VkDeviceSize buffer_size, V
 		.setSize(static_cast<vk::DeviceSize>(buffer_size))
 		.setUsage(vk::BufferUsageFlags{ buffer_usage });
 
-#ifdef USE_VMA
-	if (mVmaAllocator) {
+#ifdef VKL_HAS_VMA
+	if (vklHasVmaAllocator()) {
 		VmaAllocationCreateInfo vmaBufferCreateInfo = {};
 		vmaBufferCreateInfo.usage = VMA_MEMORY_USAGE_UNKNOWN;
 		vmaBufferCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -814,8 +815,8 @@ void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer)
 	bool resourceDestroyed = false;
 	auto search = mHostCoherentBuffersWithBackingMemory.find(buffer);
 	if (mHostCoherentBuffersWithBackingMemory.end() != search) {
-#ifdef USE_VMA
-		if (std::holds_alternative<VmaAllocation>(search->second)) {
+#ifdef VKL_HAS_VMA
+		if (vklHasVmaAllocator() && std::holds_alternative<VmaAllocation>(search->second)) {
 			vmaDestroyBuffer(mVmaAllocator, buffer, std::get<VmaAllocation>(search->second));
 			resourceDestroyed = true;
 		}
@@ -843,8 +844,8 @@ void vklDestroyDeviceLocalBufferAndItsBackingMemory(VkBuffer buffer)
 	bool resourceDestroyed = false;
 	auto search = mDeviceLocalBuffersWithBackingMemory.find(buffer);
 	if (mDeviceLocalBuffersWithBackingMemory.end() != search) {
-#ifdef USE_VMA
-		if (std::holds_alternative<VmaAllocation>(search->second)) {
+#ifdef VKL_HAS_VMA
+		if (vklHasVmaAllocator() && std::holds_alternative<VmaAllocation>(search->second)) {
 			vmaDestroyBuffer(mVmaAllocator, buffer, std::get<VmaAllocation>(search->second));
 			resourceDestroyed = true;
 		}
@@ -879,8 +880,8 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
 		VKL_EXIT_WITH_ERROR("Couldn't find backing memory for the given VkBuffer => Can't copy data. Have you created the buffer via vklCreateHostCoherentBufferWithBackingMemory(...)?");
 	}
 
-#ifdef USE_VMA
-	if (std::holds_alternative<VmaAllocation>(search->second)) {
+#ifdef VKL_HAS_VMA
+	if (vklHasVmaAllocator() && std::holds_alternative<VmaAllocation>(search->second)) {
 		void* mappedData;
 		auto result = vmaMapMemory(mVmaAllocator, std::get<VmaAllocation>(search->second), &mappedData);
 		assert(result >= 0);
@@ -1032,20 +1033,6 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 		vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation,
 		DebugUtilsMessengerCallback, nullptr
 	}, nullptr, mDynamicDispatch);
-
-#ifdef USE_VMA
-	VmaAllocatorCreateInfo vmaCreateInfo = {};
-	vmaCreateInfo.instance = vk_instance;
-	vmaCreateInfo.physicalDevice = vk_physical_device;
-	vmaCreateInfo.device = vk_device;
-	auto vmaResult = vmaCreateAllocator(&vmaCreateInfo, &mVmaAllocator);
-	if (VK_SUCCESS != vmaResult) {
-		VKL_EXIT_WITH_ERROR("Failed to initialize VMA. You might want to try undefining USE_VMA.");
-	}
-	// TODO: you should inform the library which Vulkan version do you use by setting VmaAllocatorCreateInfo::vulkanApiVersion
-	// TODO: which extensions did you enable by setting VmaAllocatorCreateInfo::flags (like VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT for VK_KHR_buffer_device_address)
-	// Otherwise, VMA would use only features of Vulkan 1.0 core with no extensions.
-#endif
 
 	// See if we can get some information about the surface:
 	auto surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
@@ -1278,6 +1265,20 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	mFrameworkInitialized = true;
 	return mFrameworkInitialized;
 }
+
+#ifdef VKL_HAS_VMA
+bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysicalDevice vk_physical_device,
+                      VkDevice vk_device, VkQueue vk_queue, const VklSwapchainConfig &swapchain_config,
+                      VmaAllocator vma_allocator)
+{
+	vklInitFramework(vk_instance, vk_surface, vk_physical_device, vk_device, vk_queue, swapchain_config);
+
+	if (VmaAllocator{} == vma_allocator) {
+		VKL_EXIT_WITH_ERROR("Invalid VmaAllocator handle passed to vklInitFramework");
+	}
+	mVmaAllocator = vma_allocator;
+}
+#endif 
 
 bool vklFrameworkInitialized()
 {
@@ -1521,8 +1522,8 @@ VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_dev
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setSharingMode(vk::SharingMode::eExclusive);
 
-#ifdef USE_VMA
-	if (mVmaAllocator) {
+#ifdef VKL_HAS_VMA
+	if (vklHasVmaAllocator()) {
 		VmaAllocationCreateInfo vmaImageCreateInfo = {};
 		vmaImageCreateInfo.usage = VMA_MEMORY_USAGE_UNKNOWN;
 		vmaImageCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -1621,8 +1622,8 @@ void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image)
 	bool resourceDestroyed = false;
 	auto search = mImagesWithBackingMemory.find(image);
 	if (mImagesWithBackingMemory.end() != search) {
-#ifdef USE_VMA
-		if (std::holds_alternative<VmaAllocation>(search->second)) {
+#ifdef VKL_HAS_VMA
+		if (vklHasVmaAllocator() && std::holds_alternative<VmaAllocation>(search->second)) {
 			vmaDestroyImage(mVmaAllocator, image, std::get<VmaAllocation>(search->second));
 			resourceDestroyed = true;
 		}
