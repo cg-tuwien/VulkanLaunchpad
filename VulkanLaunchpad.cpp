@@ -4,9 +4,15 @@
  */
 #include "VulkanLaunchpad.h"
 #include <vulkan/vulkan.hpp>
+#ifdef VKL_HAS_VMA
+#define VMA_IMPLEMENTATION
+#include <vma/vk_mem_alloc.h>
+#endif
+
 #include <unordered_map>
 #include <map>
 #include <deque>
+#include <variant>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tinyobjloader/tiny_obj_loader.h>
 //#define USE_SHADERC
@@ -47,7 +53,12 @@ vk::DispatchLoaderStatic mDispatchLoader = {};
 vk::Queue mQueue                         = {};
 VklSwapchainConfig mSwapchainConfig      = {};
 std::vector<std::vector<vk::ClearValue>> mClearValues;
-                                 
+
+#ifdef VKL_HAS_VMA
+VmaAllocator mVmaAllocator               = {};
+bool vklHasVmaAllocator()                { return VmaAllocator{} != mVmaAllocator; }
+#endif
+
 bool mFrameworkInitialized = false;
 
 vk::DispatchLoaderDynamic mDynamicDispatch;
@@ -72,9 +83,15 @@ int mFrameInFlightIndex;
 uint32_t mCurrentSwapChainImageIndex;
 
 vk::UniqueCommandPool mCommandPool;
+#ifdef VKL_HAS_VMA
+std::unordered_map<VkBuffer, std::variant<vk::UniqueDeviceMemory, VmaAllocation>> mHostCoherentBuffersWithBackingMemory;
+std::unordered_map<VkBuffer, std::variant<vk::UniqueDeviceMemory, VmaAllocation>> mDeviceLocalBuffersWithBackingMemory;
+std::unordered_map<VkImage, std::variant<vk::UniqueDeviceMemory, VmaAllocation>> mImagesWithBackingMemory;
+#else
 std::unordered_map<VkBuffer, vk::UniqueDeviceMemory> mHostCoherentBuffersWithBackingMemory;
 std::unordered_map<VkBuffer, vk::UniqueDeviceMemory> mDeviceLocalBuffersWithBackingMemory;
 std::unordered_map<VkImage, vk::UniqueDeviceMemory> mImagesWithBackingMemory;
+#endif
 std::deque<vk::UniqueCommandBuffer> mSingleUseCommandBuffers;
 
 std::unordered_map<VkPipeline, std::tuple<vk::UniqueDescriptorSetLayout, vk::UniquePipelineLayout>> mPipelineLayouts;
@@ -698,7 +715,7 @@ VkDeviceMemory vklAllocateMemoryForGivenRequirements(VkDeviceSize bufferSize, Vk
 		return memory;
 	}
 	else {
-      VKL_EXIT_WITH_ERROR(std::string("Error allocating memory of size [") + std::to_string(bufferSize) + "] and requirements[" + std::to_string(memoryRequirements.alignment) + ", " + std::to_string(memoryRequirements.memoryTypeBits) + ", " + std::to_string(memoryRequirements.size) + "]\n    Error Code: " + to_string(returnCode));
+    	VKL_EXIT_WITH_ERROR(std::string("Error allocating memory of size [") + std::to_string(bufferSize) + "] and requirements[" + std::to_string(memoryRequirements.alignment) + ", " + std::to_string(memoryRequirements.memoryTypeBits) + ", " + std::to_string(memoryRequirements.size) + "]\n    Error Code: " + to_string(returnCode));
 	}
 }
 
@@ -718,6 +735,20 @@ VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, 
 	auto createInfo = vk::BufferCreateInfo{}
 		.setSize(static_cast<vk::DeviceSize>(buffer_size))
 		.setUsage(vk::BufferUsageFlags{ buffer_usage });
+
+#ifdef VKL_HAS_VMA
+	if (vklHasVmaAllocator()) {
+		VmaAllocationCreateInfo vmaBufferCreateInfo = {};
+		vmaBufferCreateInfo.usage = VMA_MEMORY_USAGE_UNKNOWN;
+		vmaBufferCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+		VkBuffer bufferFromVma;
+		VmaAllocation vmaAllocation;
+		vmaCreateBuffer(mVmaAllocator, &static_cast<const VkBufferCreateInfo&>(createInfo), &vmaBufferCreateInfo, &bufferFromVma, &vmaAllocation, nullptr);
+		mHostCoherentBuffersWithBackingMemory[bufferFromVma] = std::move(vmaAllocation);
+		return bufferFromVma;
+	}
+#endif
+
 	auto buffer = mDevice.createBuffer(createInfo);
 
 	// Allocate the memory (we want host-coherent memory):
@@ -743,6 +774,20 @@ VkBuffer vklCreateDeviceLocalBufferWithBackingMemory(VkDeviceSize buffer_size, V
 	auto createInfo = vk::BufferCreateInfo{}
 		.setSize(static_cast<vk::DeviceSize>(buffer_size))
 		.setUsage(vk::BufferUsageFlags{ buffer_usage });
+
+#ifdef VKL_HAS_VMA
+	if (vklHasVmaAllocator()) {
+		VmaAllocationCreateInfo vmaBufferCreateInfo = {};
+		vmaBufferCreateInfo.usage = VMA_MEMORY_USAGE_UNKNOWN;
+		vmaBufferCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		VkBuffer bufferFromVma;
+		VmaAllocation vmaAllocation;
+		vmaCreateBuffer(mVmaAllocator, &static_cast<const VkBufferCreateInfo&>(createInfo), &vmaBufferCreateInfo, &bufferFromVma, &vmaAllocation, nullptr);
+		mDeviceLocalBuffersWithBackingMemory[bufferFromVma] = std::move(vmaAllocation);
+		return bufferFromVma;
+	}
+#endif
+
 	auto buffer = mDevice.createBuffer(createInfo);
 
 	// Allocate the memory (we want device-local memory):
@@ -767,15 +812,24 @@ void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer)
 		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklDestroyHostCoherentBufferAndItsBackingMemory(...)");
 	}
 
+	bool resourceDestroyed = false;
 	auto search = mHostCoherentBuffersWithBackingMemory.find(buffer);
 	if (mHostCoherentBuffersWithBackingMemory.end() != search) {
+#ifdef VKL_HAS_VMA
+		if (vklHasVmaAllocator() && std::holds_alternative<VmaAllocation>(search->second)) {
+			vmaDestroyBuffer(mVmaAllocator, buffer, std::get<VmaAllocation>(search->second));
+			resourceDestroyed = true;
+		}
+#endif
 		mHostCoherentBuffersWithBackingMemory.erase(search);
 	}
 	else {
 		VKL_WARNING("VkDeviceMemory for the given VkBuffer not found. Are you sure that you have created this buffer with vklCreateHostCoherentBufferWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkBuffer?");
 	}
 
-	mDevice.destroy(vk::Buffer{ buffer });
+	if (!resourceDestroyed) {
+		mDevice.destroy(vk::Buffer{ buffer });
+	}
 }
 
 void vklDestroyDeviceLocalBufferAndItsBackingMemory(VkBuffer buffer)
@@ -787,15 +841,24 @@ void vklDestroyDeviceLocalBufferAndItsBackingMemory(VkBuffer buffer)
 		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklDestroyDeviceLocalBufferAndItsBackingMemory(...)");
 	}
 
+	bool resourceDestroyed = false;
 	auto search = mDeviceLocalBuffersWithBackingMemory.find(buffer);
 	if (mDeviceLocalBuffersWithBackingMemory.end() != search) {
+#ifdef VKL_HAS_VMA
+		if (vklHasVmaAllocator() && std::holds_alternative<VmaAllocation>(search->second)) {
+			vmaDestroyBuffer(mVmaAllocator, buffer, std::get<VmaAllocation>(search->second));
+			resourceDestroyed = true;
+		}
+#endif
 		mDeviceLocalBuffersWithBackingMemory.erase(search);
 	}
 	else {
 		VKL_WARNING("VkDeviceMemory for the given VkBuffer not found. Are you sure that you have created this buffer with vklCreateDeviceLocalBufferWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkBuffer?");
 	}
 
-	mDevice.destroy(vk::Buffer{ buffer });
+	if (!resourceDestroyed) {
+		mDevice.destroy(vk::Buffer{ buffer });
+	}
 }
 
 void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, const void* data_pointer, size_t data_size_in_bytes)
@@ -817,10 +880,26 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
 		VKL_EXIT_WITH_ERROR("Couldn't find backing memory for the given VkBuffer => Can't copy data. Have you created the buffer via vklCreateHostCoherentBufferWithBackingMemory(...)?");
 	}
 
+#ifdef VKL_HAS_VMA
+	if (vklHasVmaAllocator() && std::holds_alternative<VmaAllocation>(search->second)) {
+		void* mappedData;
+		auto result = vmaMapMemory(mVmaAllocator, std::get<VmaAllocation>(search->second), &mappedData);
+		assert(result >= 0);
+		memcpy(mappedData, data_pointer, data_size_in_bytes);
+		vmaUnmapMemory(mVmaAllocator, std::get<VmaAllocation>(search->second));
+	}
+	else {
+		uint8_t* mappedMemory = static_cast<uint8_t*>(mDevice.mapMemory(std::get<vk::UniqueDeviceMemory>(search->second).get(), 0, static_cast<vk::DeviceSize>(data_size_in_bytes)));
+		mappedMemory += buffer_offset_in_bytes;
+		memcpy(mappedMemory, data_pointer, data_size_in_bytes);
+		mDevice.unmapMemory(std::get<vk::UniqueDeviceMemory>(search->second).get());
+	}
+#else
 	uint8_t* mappedMemory = static_cast<uint8_t*>(mDevice.mapMemory(search->second.get(), 0, static_cast<vk::DeviceSize>(data_size_in_bytes)));
 	mappedMemory += buffer_offset_in_bytes;
 	memcpy(mappedMemory, data_pointer, data_size_in_bytes);
 	mDevice.unmapMemory(search->second.get());
+#endif
 }
 
 /*!
@@ -1187,6 +1266,20 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	return mFrameworkInitialized;
 }
 
+#ifdef VKL_HAS_VMA
+bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysicalDevice vk_physical_device,
+                      VkDevice vk_device, VkQueue vk_queue, const VklSwapchainConfig &swapchain_config,
+                      VmaAllocator vma_allocator)
+{
+	vklInitFramework(vk_instance, vk_surface, vk_physical_device, vk_device, vk_queue, swapchain_config);
+
+	if (VmaAllocator{} == vma_allocator) {
+		VKL_EXIT_WITH_ERROR("Invalid VmaAllocator handle passed to vklInitFramework");
+	}
+	mVmaAllocator = vma_allocator;
+}
+#endif 
+
 bool vklFrameworkInitialized()
 {
 	return mFrameworkInitialized;
@@ -1428,6 +1521,20 @@ VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_dev
 		.setUsage(static_cast<vk::ImageUsageFlags>(usage_flags))
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setSharingMode(vk::SharingMode::eExclusive);
+
+#ifdef VKL_HAS_VMA
+	if (vklHasVmaAllocator()) {
+		VmaAllocationCreateInfo vmaImageCreateInfo = {};
+		vmaImageCreateInfo.usage = VMA_MEMORY_USAGE_UNKNOWN;
+		vmaImageCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		VkImage imageFromVma;
+		VmaAllocation vmaAllocation;
+		vmaCreateImage(mVmaAllocator, &static_cast<const VkImageCreateInfo&>(createInfo), &vmaImageCreateInfo, &imageFromVma, &vmaAllocation, nullptr);
+		mImagesWithBackingMemory[imageFromVma] = std::move(vmaAllocation);
+		return imageFromVma;
+	}
+#endif
+
 	auto image = vk::Device{ device }.createImage(createInfo);
 
 	auto memoryRequirements = vk::Device{ device }.getImageMemoryRequirements(image);
@@ -1512,15 +1619,24 @@ void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image)
 		VKL_EXIT_WITH_ERROR("Invalid image handle passed to vklDestroyImageAndItsBackingMemory(...)");
 	}
 
+	bool resourceDestroyed = false;
 	auto search = mImagesWithBackingMemory.find(image);
 	if (mImagesWithBackingMemory.end() != search) {
+#ifdef VKL_HAS_VMA
+		if (vklHasVmaAllocator() && std::holds_alternative<VmaAllocation>(search->second)) {
+			vmaDestroyImage(mVmaAllocator, image, std::get<VmaAllocation>(search->second));
+			resourceDestroyed = true;
+		}
+#endif
 		mImagesWithBackingMemory.erase(search);
 	}
 	else {
 		VKL_WARNING("VkDeviceMemory for the given VkImage not found. Are you sure that you have created this buffer with vklCreateDeviceLocalImageWithBackingMemory(...)? Are you sure that you haven't already destroyed this VkImage?");
 	}
 
-	mDevice.destroy(vk::Image{ image });
+	if (!resourceDestroyed) {
+		mDevice.destroy(vk::Image{ image });
+	}
 }
 #pragma endregion
 

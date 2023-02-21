@@ -16,6 +16,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
+#if __has_include(<vma/vk_mem_alloc.h>)
+#define VKL_HAS_VMA
+#include <vma/vk_mem_alloc.h>
+#endif
+
 // Returns a string describing the given VkResult value
 extern const char *to_string(VkResult result);
 
@@ -204,10 +209,20 @@ extern const char *vklRequiredInstanceExtensions[];
 const char **vklGetRequiredInstanceExtensions(uint32_t *out_count);
 
 /*!
- * Initializes the framework
+ *  Initializes the framework
  */
 bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysicalDevice vk_physical_device,
                       VkDevice vk_device, VkQueue vk_queue, const VklSwapchainConfig &swapchain_config);
+
+#ifdef VKL_HAS_VMA
+/*!
+ *  Initializes the framework.
+ *  This overload additionally takes a VmaAllocator handle
+ */
+bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysicalDevice vk_physical_device,
+                      VkDevice vk_device, VkQueue vk_queue, const VklSwapchainConfig &swapchain_config,
+                      VmaAllocator vma_allocator);
+#endif 
 
 /*!
  * Returns true if the framework has been properly initialized, false otherwise.
