@@ -2,6 +2,10 @@
 
 A framework by TU Wien targeted at Vulkan beginners. It abstracts some of the hard and overly verbose parts of the Vulkan C API and can help to boost your learning progress early on. 
 
+Sections:
+- [Setup Instructions](#setup-instructions)
+- [Documentation](#documentation)
+
 # Setup Instructions
 
 Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/), and optimally an integrated development environment (IDE). In the following, we describe setup instructions for common operating systems and editors/IDEs (click the links in the table of contents to jump to the sections that are relevant to your chosen setup):           
@@ -19,7 +23,6 @@ Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Gi
     - [Other IDEs](#other-ides)
 - [Troubleshooting](#troubleshooting)
     - [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
-- [Documentation](#documentation)
 
 **Starter Template:**       
 For a quick project setup of an executable that links Vulkan Launchpad, we provide a starter template at [github.com/cg-tuwien/VulkanLaunchpadStarter](https://github.com/cg-tuwien/VulkanLaunchpadStarter).
@@ -153,6 +156,20 @@ In case you had an existing XCode Command Line Tools installation, this error ma
 This may be the case, if you forgot to select `System Global Installation` during the Vulkan SDK installation, leading to errors during cmake generation, as the location of the Vulkan libraries cannot be found. You can install it retroactively by executing the `MaintenanceTool.app` in the `VulkanSDK` folder and selecting `System Global Installation` as a component to add.
 
 # Documentation
+
+Documentation sections:
+- [Structure](#structure)
+- [Naming Conventions](#naming-conventions)
+- [Functionality](#functionality)
+    - [Initialization and Destruction](#initialization-and-destruction)
+	- [Extensions](#extensions)
+	- [Render Loop](#render-loop)
+	- [Graphics Pipelines](#graphics-pipelines)
+	- [Buffers](#buffers)
+	- [Images](#images)
+	- [Resource Loading (3D Models, Textures)](#resource-loading-3d-models-textures)
+	- [Logging and Error Checking](#logging-and-error-checking)
+- [Vulkan Memory Allocator (VMA)](#vulkan-memory-allocator-vma)
 
 ### Structure
 
