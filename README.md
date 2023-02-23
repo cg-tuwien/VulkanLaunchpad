@@ -2,6 +2,10 @@
 
 A framework by TU Wien targeted at Vulkan beginners. It abstracts some of the hard and overly verbose parts of the Vulkan C API and can help to boost your learning progress early on. 
 
+Sections:
+- [Setup Instructions](#setup-instructions)
+- [Documentation](#documentation)
+
 # Setup Instructions
 
 Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Git](https://git-scm.com/), the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/), a C++ compiler, [CMake](https://cmake.org/), and optimally an integrated development environment (IDE). In the following, we describe setup instructions for common operating systems and editors/IDEs (click the links in the table of contents to jump to the sections that are relevant to your chosen setup):           
@@ -19,7 +23,8 @@ Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Gi
     - [Other IDEs](#other-ides)
 - [Troubleshooting](#troubleshooting)
     - [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
-- [Documentation](#documentation)
+    - [On macOS: CMake cannot find C/CXX compiler](#on-macos-cmake-cannot-find-ccxx-compiler)
+    - [On macOS: CMake cannot find Vulkan](#on-macos-cmake-cannot-find-vulkan)
 
 **Starter Template:**       
 For a quick project setup of an executable that links Vulkan Launchpad, we provide a starter template at [github.com/cg-tuwien/VulkanLaunchpadStarter](https://github.com/cg-tuwien/VulkanLaunchpadStarter).
@@ -154,6 +159,20 @@ This may be the case, if you forgot to select `System Global Installation` durin
 
 # Documentation
 
+Documentation sections:
+- [Structure](#structure)
+- [Naming Conventions](#naming-conventions)
+- [Functionality](#functionality)
+    - [Initialization and Destruction](#initialization-and-destruction)
+	- [Extensions](#extensions)
+	- [Render Loop](#render-loop)
+	- [Graphics Pipelines](#graphics-pipelines)
+	- [Buffers](#buffers)
+	- [Images](#images)
+	- [Resource Loading (3D Models, Textures)](#resource-loading-3d-models-textures)
+	- [Logging and Error Checking](#logging-and-error-checking)
+- [Vulkan Memory Allocator (VMA)](#vulkan-memory-allocator-vma)
+
 ### Structure
 
 - `VulkanLaunchpad.h`/`VulkanLaunchpad.cpp`: Vulkan Launchpad's main funnctionality.
@@ -258,3 +277,21 @@ Additionally, Vulkan Launchpad offers several possibilities to process a `VkResu
 - `VKL_CHECK_VULKAN_ERROR` : Evaluates a `VkResult` and displays its status only if it represents an error.
 - `VKL_RETURN_ON_ERROR` : Evaluates a `VkResult` and issues a return statement if it represents an error.
 
+### Vulkan Memory Allocator (VMA)
+
+Vulkan Launchpad provides support for [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator). To enable it, you'll have to ensure that Vulkan Launchpad can find its header, namely `<vma/vk_mem_alloc.h>`, which can be accomplished by:
+- Installing VMA through the Vulkan installer or its maintenance tool (e.g., `maintenancetool.exe` on Windows) by selecting the `Vulkan Memory Allocator header.` option.
+
+After installing it and rebuilding Vulkan Launchpad, you should see an additional `vklInitFramework` overload, which accepts a `VmaAllocator`-type parameter (as its last parameter).     
+Create a `VmaAllocator`, e.g., like follows:
+```cpp
+VmaAllocatorCreateInfo vma_allocator_create_info = {};
+vma_allocator_create_info.instance = // TODO: Assign instance handle
+vma_allocator_create_info.physicalDevice = // TODO: Assign physical device handle
+vma_allocator_create_info.device = // TODO: Assign device handle
+VmaAllocator vma_allocator;
+VkResult result = vmaCreateAllocator(&vma_allocator_create_info, &vma_allocator);
+```
+and pass it to `vklInitFramework` to let Vulkan Launchpad do all internal memory allocations via VMA henceforth.
+
+Further information about VMA can be found in [VMA's documentation](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/).
