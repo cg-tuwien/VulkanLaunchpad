@@ -282,7 +282,7 @@ Additionally, Vulkan Launchpad offers several possibilities to process a `VkResu
 Vulkan Launchpad provides support for [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator). To enable it, you'll have to ensure that Vulkan Launchpad can find its header, namely `<vma/vk_mem_alloc.h>`, which can be accomplished by:
 - Installing VMA through the Vulkan installer or its maintenance tool (e.g., `maintenancetool.exe` on Windows) by selecting the `Vulkan Memory Allocator header.` option.
 
-After installing it and rebuilding Vulkan Launchpad, you should see an additional `vklInitFramework` overload, which accepts a `VmaAllocator`-type as its last parameter.     
+After installing it and rebuilding Vulkan Launchpad, you should see an additional `vklInitFramework` overload, which accepts a `VmaAllocator`-type parameter (as its last parameter).     
 Create a `VmaAllocator`, e.g., like follows:
 ```cpp
 VmaAllocatorCreateInfo vma_allocator_create_info = {};
