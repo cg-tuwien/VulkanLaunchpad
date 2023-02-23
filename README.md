@@ -23,6 +23,8 @@ Vulkan Launchpad runs on Windows, macOS, and Linux. For building you'll need [Gi
     - [Other IDEs](#other-ides)
 - [Troubleshooting](#troubleshooting)
     - [Submodule Updates Take a Long Time](#submodule-updates-take-a-long-time)
+    - [On macOS: CMake cannot find C/CXX compiler](#on-macos-cmake-cannot-find-ccxx-compiler)
+    - [On macOS: CMake cannot find Vulkan](#on-macos-cmake-cannot-find-vulkan)
 
 **Starter Template:**       
 For a quick project setup of an executable that links Vulkan Launchpad, we provide a starter template at [github.com/cg-tuwien/VulkanLaunchpadStarter](https://github.com/cg-tuwien/VulkanLaunchpadStarter).
