@@ -292,6 +292,6 @@ vma_allocator_create_info.device = // TODO: Assign device handle
 VmaAllocator vma_allocator;
 VkResult result = vmaCreateAllocator(&vma_allocator_create_info, &vma_allocator);
 ```
-and pass it to `vklInitFramework` to let Vulkan Launchpad do all internal memory allocations via VMA.
+and pass it to `vklInitFramework` to let Vulkan Launchpad do all internal memory allocations via VMA henceforth.
 
-Further details can be found in [VMA's documentation](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/).
+Further information about VMA can be found in [VMA's documentation](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/).
