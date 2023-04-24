@@ -1163,15 +1163,15 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	mSrcStages0 = vk::PipelineStageFlagBits::eTransfer;
 	mSrcAccess0 = vk::AccessFlagBits::eTransferWrite;
 	// In any case, we must wait for such potential transfers in fragment shaders, where we're using the buffers
-	mDstStages0 = vk::PipelineStageFlagBits::eFragmentShader;
-	mDstAccess0 = vk::AccessFlagBits::eShaderRead;
+	mDstStages0 = vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eColorAttachmentOutput;
+	mDstAccess0 = vk::AccessFlagBits::eShaderRead            | vk::AccessFlagBits::eColorAttachmentWrite        ;
 	// If we have depth attachments, prepare for the case where one single depth image is used for all framebuffers in flight:
 	// (For further details, see here: https://stackoverflow.com/questions/62371266/why-is-a-single-depth-buffer-sufficient-for-this-vulkan-swapchain-render-loop/62398311#62398311)
 	if (mHasDepthAttachments) {
 		mSrcStages0 |= (vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests);
 		mSrcAccess0 |= (vk::AccessFlagBits::eDepthStencilAttachmentWrite);
-		mDstStages0 |= (vk::PipelineStageFlagBits::eEarlyFragmentTests  | vk::PipelineStageFlagBits::eLateFragmentTests    | vk::PipelineStageFlagBits::eColorAttachmentOutput);
-		mDstAccess0 |= (vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eColorAttachmentWrite        );
+		mDstStages0 |= (vk::PipelineStageFlagBits::eEarlyFragmentTests  | vk::PipelineStageFlagBits::eLateFragmentTests   );
+		mDstAccess0 |= (vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite);
 	}
 	// We don't really need to synchronize on the COLOR_ATTACHMENT_OUTPUT stage since actually our fences ensure that we do not reuse the same swap chain image.
 	// Therefore, this should be fine.
