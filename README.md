@@ -62,14 +62,16 @@ In case you want to use [Ninja](https://ninja-build.org/) or other development t
 
 #### Ubuntu and Linux Mint
 ```bash
-# Add LunarG public key
-wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
-
-# Add Vulkan package
 # Jammy Jellyfish (Ubuntu 22.04/22.10 and Linux Mint 21.0/21.1)
-sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.236-jammy.list https://packages.lunarg.com/vulkan/1.3.236/lunarg-vulkan-1.3.236-jammy.list
+# Add LunarG public key
+wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+# Add Vulkan package
+sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
 # Focal Fossa (Ubuntu 20.04/20.10 and Linux Mint 20.0/20.1/20.2/20.3)
-sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.236-focal.list https://packages.lunarg.com/vulkan/1.3.236/lunarg-vulkan-1.3.236-focal.list
+# Add LunarG public key
+wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+# Add Vulkan package
+sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-focal.list http://packages.lunarg.com/vulkan/lunarg-vulkan-focal.list
 
 # Update package manager
 sudo apt update
