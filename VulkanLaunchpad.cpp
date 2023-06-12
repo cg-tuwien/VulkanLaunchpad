@@ -1475,7 +1475,7 @@ uint32_t vklGetNumClearValues()
 }
 VkFramebuffer vklGetFramebuffer(uint32_t i)
 {
-	if (mFramebuffers.size() >= i) {
+	if (i >= mFramebuffers.size()) {
 		VKL_EXIT_WITH_ERROR("The given index[" + std::to_string(i) + "] is larger than the number of available framebuffers[" + std::to_string(mFramebuffers.size()) + "]");
 	}
 	return static_cast<VkFramebuffer>(mFramebuffers[i].get());
