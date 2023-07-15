@@ -1271,12 +1271,13 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
                       VkDevice vk_device, VkQueue vk_queue, const VklSwapchainConfig &swapchain_config,
                       VmaAllocator vma_allocator)
 {
-	vklInitFramework(vk_instance, vk_surface, vk_physical_device, vk_device, vk_queue, swapchain_config);
+	bool err = vklInitFramework(vk_instance, vk_surface, vk_physical_device, vk_device, vk_queue, swapchain_config);
 
 	if (VmaAllocator{} == vma_allocator) {
 		VKL_EXIT_WITH_ERROR("Invalid VmaAllocator handle passed to vklInitFramework");
 	}
 	mVmaAllocator = vma_allocator;
+	return err;
 }
 #endif 
 
