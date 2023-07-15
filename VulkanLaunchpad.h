@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 TU Wien, Institute of Visual Computing & Human-Centered Technology.
+ * Copyright (c) 2023 TU Wien, Institute of Visual Computing & Human-Centered Technology.
  * Created by Johannes Unterguggenberger (junt@cg.tuwien.ac.at, https://johannesugb.github.io).
  */
 #pragma once
