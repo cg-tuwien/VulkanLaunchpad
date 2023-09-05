@@ -643,3 +643,7 @@ glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect
  *	@return A struct instance containing all the geometry data of the loaded 3D model 
  */
 VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj);
+
+void vklHotReloadPipelines();
+
+void vklEnableShaderHotReloading(GLFWwindow* glfw_window, int which_key_glfw_keycode);

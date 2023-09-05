@@ -98,6 +98,10 @@ std::unordered_map<VkPipeline, std::tuple<vk::UniqueDescriptorSetLayout, vk::Uni
 
 vk::Pipeline mBasicPipeline;
 
+GLFWwindow* mCallbackWindow = nullptr;
+GLFWkeyfun mPreviousKeyCallback = nullptr;
+int mKeyForShaderHotReloading = 0;
+
 // TODO: Implement this MAKEFOURCC in a sane way instead of just copying definitions.
 enum class byte : unsigned char {};
 #ifndef _BYTE_DEFINED
@@ -2001,4 +2005,22 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 		}
 	}
 	return data;
+}
+
+void vklHotReloadPipelines()
+{
+}
+
+void vklEnableShaderHotReloading(GLFWwindow* glfw_window, int which_key_glfw_keycode)
+{
+	mCallbackWindow = glfw_window;
+	mKeyForShaderHotReloading = which_key_glfw_keycode;
+	mPreviousKeyCallback = glfwSetKeyCallback(glfw_window, [](GLFWwindow* glfw_window, int key, int scancode, int action, int mods) {
+		if (action == GLFW_RELEASE && key == mKeyForShaderHotReloading) {
+			vklHotReloadPipelines();
+		}
+		if (nullptr != mPreviousKeyCallback) {
+			mPreviousKeyCallback(mCallbackWindow, key, scancode, action, mods);
+		}
+	});
 }
