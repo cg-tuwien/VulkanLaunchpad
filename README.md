@@ -173,7 +173,7 @@ Documentation sections:
 	- [Images](#images)
 	- [Resource Loading (3D Models, Textures)](#resource-loading-3d-models-textures)
 	- [Logging and Error Checking](#logging-and-error-checking)
-        - [Camera](#camera)
+	- [Camera](#camera)
 - [Vulkan Memory Allocator (VMA)](#vulkan-memory-allocator-vma)
 
 ### Structure
