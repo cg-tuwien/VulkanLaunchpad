@@ -57,9 +57,15 @@ VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix)
 	// Establish a callback function for handling mouse button events:
 	// (and keeping potentially previously set callbacks intact)
 	auto previous_mouse_callback = glfwSetMouseButtonCallback(window, mouseButtonCallbackFromGlfw);
+	if (previous_mouse_callback == mouseButtonCallbackFromGlfw) {
+		previous_mouse_callback = nullptr; // Do not store this if this is pointing to the same callback function; otherwise we get a StackOverflow
+	}
 
 	// Establish a callback function for handling mouse scroll events:
 	auto previous_scroll_callback = glfwSetScrollCallback(window, scrollCallbackFromGlfw);
+	if (previous_scroll_callback == scrollCallbackFromGlfw) {
+		previous_scroll_callback = nullptr; // Do not store this if this is pointing to the same callback function; otherwise we get a StackOverflow
+	}
 
 	auto& newCam = mCameras.emplace_back(VklCamera{
 		glm::mat4(1),
