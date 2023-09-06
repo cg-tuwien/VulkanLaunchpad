@@ -646,4 +646,6 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj);
 
 void vklHotReloadPipelines();
 
-void vklEnableShaderHotReloading(GLFWwindow* glfw_window, int which_key_glfw_keycode);
+void vklEnableShaderHotReloading(GLFWwindow* glfw_window, int glfw_key, int glfw_modifier_keys = 0);
+
+void vklCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline);
