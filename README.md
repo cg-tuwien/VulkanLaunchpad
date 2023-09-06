@@ -173,6 +173,7 @@ Documentation sections:
 	- [Images](#images)
 	- [Resource Loading (3D Models, Textures)](#resource-loading-3d-models-textures)
 	- [Logging and Error Checking](#logging-and-error-checking)
+	- [Camera](#camera)
 - [Vulkan Memory Allocator (VMA)](#vulkan-memory-allocator-vma)
 
 ### Structure
@@ -184,10 +185,10 @@ Documentation sections:
 ### Naming Conventions
 
 The following naming conventions are used by Vulkan Launchpad:
-- Function names: lowerCamelCase, prefixed `vkl`
-- Struct names: UpperCamelCase, prefixed `Vkl`
-- Struct member variables: mCamelCase 
-- Function parameters: snake_case
+- Function names: `lowerCamelCase`, prefixed with  `vkl`
+- Struct names: `UpperCamelCase`, prefixed with `Vkl`
+- Struct member variables: `mCamelCase` 
+- Function parameters: `snake_case`
 
 ### Functionality
 
@@ -278,6 +279,30 @@ Additionally, Vulkan Launchpad offers several possibilities to process a `VkResu
 - `VKL_CHECK_VULKAN_RESULT` : Evaluates a `VkResult` and displays its status.
 - `VKL_CHECK_VULKAN_ERROR` : Evaluates a `VkResult` and displays its status only if it represents an error.
 - `VKL_RETURN_ON_ERROR` : Evaluates a `VkResult` and issues a return statement if it represents an error.
+
+#### Camera
+
+The following functions are provided for creating and using an orbit/arcball-style camera:
+- `vklCreateCamera`: Creates a new camera.
+- `vklDestroyCamera`: Destroys an existing camera.
+- `vklGetCameraPosition`: Gets the current position of the camera in world space.
+- `vklGetCameraViewMatrix`: Gets the camera's current view matrix, i.e., the one which transforms from world space into the camera's view space.
+- `vklGetCameraViewProjectionMatrix`: Gets the camera's combined view and projection matrix.
+- `vklUpdateCamera`: Updates the camera's view matrix internally based on user input. This function is supposed to be called once per frame within the render loop.
+
+Example of intended/correct usage:
+```cpp
+GLFWwindow* window = glfwCreateWindow(...);
+VklCameraHandle camera = vklCreateCamera(window);
+// ...
+while (!glfwWindowShouldClose(window)) {
+    glfwPollEvents();
+    vklUpdateCamera(camera);
+    glm::mat4 view_proj_matrix = vklGetCameraViewProjectionMatrix(camera);
+    // ...
+}
+vklDestroyCamera(camera);
+```
 
 ### Vulkan Memory Allocator (VMA)
 
