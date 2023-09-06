@@ -101,6 +101,10 @@ vk::Pipeline mBasicPipeline;
 GLFWwindow* mCallbackWindow = nullptr;
 GLFWkeyfun mPreviousKeyCallback = nullptr;
 int mKeyForShaderHotReloading = 0;
+int mModKeysForShaderHotReloading = 0;
+std::unordered_map<VkPipeline, std::tuple<VklGraphicsPipelineConfig, std::string, std::string, bool>> mKnownPipelines;
+std::unordered_map<VkPipeline, VkPipeline> mPipelineSurrogates;
+std::deque<std::tuple<int64_t, VkPipeline>> mPipelineGraveyard;
 
 // TODO: Implement this MAKEFOURCC in a sane way instead of just copying definitions.
 enum class byte : unsigned char {};
@@ -547,7 +551,7 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromFi
 	return loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(content, path, shaderStage);
 }
 
-VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
+VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
 {
     if (!loadShadersFromMemoryInstead && !vklFrameworkInitialized()) {
         VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
@@ -651,8 +655,27 @@ VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bo
 	mDevice.destroyShaderModule(std::get<vk::ShaderModule>(fragTpl));
 	mDevice.destroyShaderModule(std::get<vk::ShaderModule>(vertTpl));
 
-	mPipelineLayouts[static_cast<VkPipeline>(graphicsPipeline)] = std::forward_as_tuple(std::move(descriptorSetLayout), std::move(pipelineLayout));
-	return static_cast<VkPipeline>(graphicsPipeline);
+	auto graphicsPipelineHandle = static_cast<VkPipeline>(graphicsPipeline);
+
+	mPipelineLayouts[graphicsPipelineHandle] = std::forward_as_tuple(std::move(descriptorSetLayout), std::move(pipelineLayout));
+	return graphicsPipelineHandle;
+}
+
+VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
+{
+	auto graphicsPipelineHandle = createGraphicsPipelineInternal(config, loadShadersFromMemoryInstead);
+	// Store for hot reloading, but only those handles, which the user requested explicitly (hence the split of createGraphicsPipelineInternal and vklCreateGraphicsPipeline):
+	mKnownPipelines[graphicsPipelineHandle] = std::make_tuple(config, std::string(config.vertexShaderPath), std::string(config.fragmentShaderPath), loadShadersFromMemoryInstead);
+	return graphicsPipelineHandle;
+}
+
+VkPipeline getGraphicsPipelineOrItsSurrogate(VkPipeline originalPipelineHandle)
+{
+	auto it = mPipelineSurrogates.find(originalPipelineHandle);
+	if (it != mPipelineSurrogates.end()) {
+		return it->second; // using the surrogate/updated pipeline
+	}
+	return originalPipelineHandle;
 }
 
 void vklDestroyGraphicsPipeline(VkPipeline pipeline)
@@ -660,7 +683,32 @@ void vklDestroyGraphicsPipeline(VkPipeline pipeline)
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
 	}
-	mDevice.destroy(vk::Pipeline{ pipeline });
+
+	// Remove all the entries from the auxiliary data structures used for hot reloading:
+	// mPipelineGraveyard:
+	mPipelineGraveyard.erase(std::remove_if(
+			mPipelineGraveyard.begin(),
+			mPipelineGraveyard.end(),
+			[pipeline](const std::tuple<int64_t, VkPipeline>& element) { 
+				return std::get<1>(element) == pipeline; 
+			}
+		), mPipelineGraveyard.end());
+	// Just all mappings the pipeline is part of in mPipelineSurrogates:
+	for(auto it = mPipelineSurrogates.begin(); it != mPipelineSurrogates.end();) {
+		if (it->first == pipeline || it->second == pipeline) {
+			it = mPipelineSurrogates.erase(it);
+		}
+		else {
+			++it;
+		}
+	}
+	// And the also its entry in mKnownPipelines:
+	auto it = mKnownPipelines.find(pipeline);
+	if (it != mKnownPipelines.end()) {
+		mKnownPipelines.erase(it);
+	}
+
+	mDevice.destroy(vk::Pipeline{ getGraphicsPipelineOrItsSurrogate(pipeline) });
 }
 
 vk::MemoryAllocateInfo vklCreateMemoryAllocateInfo(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags memoryPropertyFlags) {
@@ -944,6 +992,8 @@ void vklBindDescriptorSetToPipeline(VkDescriptorSet descriptor_set, VkPipeline p
 	}
 	auto& cb = mSingleUseCommandBuffers.back().get();
 
+	pipeline = getGraphicsPipelineOrItsSurrogate(pipeline);
+
 	auto searchPl = mPipelineLayouts.find(pipeline);
 	if (mPipelineLayouts.end() == searchPl) {
 		VKL_EXIT_WITH_ERROR("Couldn't find the VkPipeline passed to vklBindDescriptorSetToPipeline. Is it a valid handle and has it been created with vklCreateGraphicsPipeline(...)?");
@@ -962,6 +1012,8 @@ void vklBindDescriptorSetToPipeline(VkDescriptorSet descriptor_set, VkPipeline p
 
 VkPipelineLayout vklGetLayoutForPipeline(VkPipeline pipeline)
 {
+	pipeline = getGraphicsPipelineOrItsSurrogate(pipeline);
+
 	auto searchPl = mPipelineLayouts.find(pipeline);
 	if (mPipelineLayouts.end() == searchPl) {
 		VKL_EXIT_WITH_ERROR("Couldn't find the VkPipeline passed to vklBindDescriptorSetToPipeline. Is it a valid handle and has it been created with vklCreateGraphicsPipeline(...)?");
@@ -1325,11 +1377,30 @@ void vklDestroyFramework()
 	mDebugUtilsMessenger = nullptr;
 }
 
+// Delete those pipelines which are no longer used due having been replaced after hot reloading
+void destroyOutdatedPipelines() 
+{
+	mPipelineGraveyard.erase(std::remove_if(
+			mPipelineGraveyard.begin(),
+			mPipelineGraveyard.end(),
+			[](const std::tuple<int64_t, VkPipeline>& element) { 
+				if (std::get<0>(element) < mFrameId) {
+					VKL_LOG("Destroying outdated pipeline with handle [" << std::get<1>(element) << "]");
+					vklDestroyGraphicsPipeline(std::get<1>(element));
+					return true;
+				}
+				return false;
+			}
+		), mPipelineGraveyard.end());
+}
+
 double vklWaitForNextSwapchainImage()
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
 	}
+
+	destroyOutdatedPipelines();
 
 	// Advance the frame ID:
 	++mFrameId;
@@ -2009,18 +2080,45 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 
 void vklHotReloadPipelines()
 {
+	for(auto it = mKnownPipelines.begin(); it != mKnownPipelines.end(); it++) {
+		auto originalHandle = it->first;
+		std::get<0>(it->second).vertexShaderPath   = std::get<1>(it->second).c_str();
+		std::get<0>(it->second).fragmentShaderPath = std::get<2>(it->second).c_str();
+		auto newHandle = createGraphicsPipelineInternal(std::get<0>(it->second), std::get<3>(it->second));
+
+		auto mapping = mPipelineSurrogates.find(originalHandle);
+		if (mPipelineSurrogates.end() == mapping) {
+			mPipelineSurrogates[originalHandle] = newHandle;
+			continue;
+		}
+		// else:
+		mPipelineGraveyard.push_back(std::make_tuple(mFrameId + CONCURRENT_FRAMES, mapping->second));
+		mPipelineSurrogates[originalHandle] = newHandle;
+	}
 }
 
-void vklEnableShaderHotReloading(GLFWwindow* glfw_window, int which_key_glfw_keycode)
+void shaderHotReloadingCallback(GLFWwindow* glfw_window, int key, int scancode, int action, int mods) {
+	if (action == GLFW_RELEASE && key == mKeyForShaderHotReloading && mods == mModKeysForShaderHotReloading) {
+		vklHotReloadPipelines();
+	}
+	if (nullptr != mPreviousKeyCallback) {
+		mPreviousKeyCallback(mCallbackWindow, key, scancode, action, mods);
+	}
+}
+
+void vklEnableShaderHotReloading(GLFWwindow* glfw_window, int glfw_key, int glfw_modifier_keys)
 {
 	mCallbackWindow = glfw_window;
-	mKeyForShaderHotReloading = which_key_glfw_keycode;
-	mPreviousKeyCallback = glfwSetKeyCallback(glfw_window, [](GLFWwindow* glfw_window, int key, int scancode, int action, int mods) {
-		if (action == GLFW_RELEASE && key == mKeyForShaderHotReloading) {
-			vklHotReloadPipelines();
-		}
-		if (nullptr != mPreviousKeyCallback) {
-			mPreviousKeyCallback(mCallbackWindow, key, scancode, action, mods);
-		}
-	});
+	mKeyForShaderHotReloading = glfw_key;
+	mModKeysForShaderHotReloading = glfw_modifier_keys;
+	auto previousCallback = glfwSetKeyCallback(glfw_window, shaderHotReloadingCallback);
+	if (previousCallback != shaderHotReloadingCallback) {
+		mPreviousKeyCallback = previousCallback;
+	}
+}
+
+void vklCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
+{
+	pipeline = getGraphicsPipelineOrItsSurrogate(pipeline);
+	vkCmdBindPipeline(commandBuffer, pipelineBindPoint, pipeline);
 }
