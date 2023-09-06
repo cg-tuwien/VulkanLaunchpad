@@ -292,12 +292,14 @@ The following functions are provided for creating and using an orbit/arcball-sty
 
 Example of intended/correct usage:
 ```cpp
+GLFWwindow* window = glfwCreateWindow(...);
 VklCameraHandle camera = vklCreateCamera(window);
+// ...
 while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
     vklUpdateCamera(camera);
     glm::mat4 view_proj_matrix = vklGetCameraViewProjectionMatrix(camera);
-    ...
+    // ...
 }
 vklDestroyCamera(camera);
 ```
