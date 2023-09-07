@@ -102,7 +102,7 @@ GLFWwindow* mCallbackWindow = nullptr;
 GLFWkeyfun mPreviousKeyCallback = nullptr;
 int mKeyForShaderHotReloading = 0;
 int mModKeysForShaderHotReloading = 0;
-std::unordered_map<VkPipeline, std::tuple<VklGraphicsPipelineConfig, std::string, std::string, bool>> mKnownPipelines;
+std::unordered_map<VkPipeline, std::tuple<VklGraphicsPipelineConfig, std::string, std::string, bool>> mUserKnownPipelines;
 std::unordered_map<VkPipeline, VkPipeline> mPipelineSurrogates;
 std::deque<std::tuple<int64_t, VkPipeline>> mPipelineGraveyard;
 
@@ -665,7 +665,7 @@ VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bo
 {
 	auto graphicsPipelineHandle = createGraphicsPipelineInternal(config, loadShadersFromMemoryInstead);
 	// Store for hot reloading, but only those handles, which the user requested explicitly (hence the split of createGraphicsPipelineInternal and vklCreateGraphicsPipeline):
-	mKnownPipelines[graphicsPipelineHandle] = std::make_tuple(config, std::string(config.vertexShaderPath), std::string(config.fragmentShaderPath), loadShadersFromMemoryInstead);
+	mUserKnownPipelines[graphicsPipelineHandle] = std::make_tuple(config, std::string(config.vertexShaderPath), std::string(config.fragmentShaderPath), loadShadersFromMemoryInstead);
 	return graphicsPipelineHandle;
 }
 
@@ -678,14 +678,11 @@ VkPipeline getGraphicsPipelineOrItsSurrogate(VkPipeline originalPipelineHandle)
 	return originalPipelineHandle;
 }
 
-void vklDestroyGraphicsPipeline(VkPipeline pipeline)
+void destroyGraphicsPipelineInternal(VkPipeline pipeline)
 {
-	if (!vklFrameworkInitialized()) {
-		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
-	}
+	mDevice.destroy(vk::Pipeline{ pipeline });
 
-	// Remove all the entries from the auxiliary data structures used for hot reloading:
-	// mPipelineGraveyard:
+	// Also remove it from the graveyard:
 	mPipelineGraveyard.erase(std::remove_if(
 			mPipelineGraveyard.begin(),
 			mPipelineGraveyard.end(),
@@ -693,22 +690,41 @@ void vklDestroyGraphicsPipeline(VkPipeline pipeline)
 				return std::get<1>(element) == pipeline; 
 			}
 		), mPipelineGraveyard.end());
-	// Just all mappings the pipeline is part of in mPipelineSurrogates:
+	// ...and as a surrogate (i.e., "pointed to"):
 	for(auto it = mPipelineSurrogates.begin(); it != mPipelineSurrogates.end();) {
-		if (it->first == pipeline || it->second == pipeline) {
+		if (it->second == pipeline) {
 			it = mPipelineSurrogates.erase(it);
 		}
 		else {
 			++it;
 		}
 	}
-	// And the also its entry in mKnownPipelines:
-	auto it = mKnownPipelines.find(pipeline);
-	if (it != mKnownPipelines.end()) {
-		mKnownPipelines.erase(it);
+	// but NOT from known pipelines!
+}
+
+void vklDestroyGraphicsPipeline(VkPipeline pipeline)
+{
+	if (!vklFrameworkInitialized()) {
+		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
 	}
 
-	mDevice.destroy(vk::Pipeline{ getGraphicsPipelineOrItsSurrogate(pipeline) });
+	// Destroy the latest surrogate:
+	destroyGraphicsPipelineInternal(getGraphicsPipelineOrItsSurrogate(pipeline));
+
+	// Remove the ORIGINAL pipeline handle from known pipelines:
+	auto it = mUserKnownPipelines.find(pipeline);
+	if (it != mUserKnownPipelines.end()) {
+		mUserKnownPipelines.erase(it);
+	}
+	// ...and potentially also from surrogate list (if it is the "points from" entry):
+	for(auto it = mPipelineSurrogates.begin(); it != mPipelineSurrogates.end();) {
+		if (it->first == pipeline) {
+			it = mPipelineSurrogates.erase(it);
+		}
+		else {
+			++it;
+		}
+	}
 }
 
 vk::MemoryAllocateInfo vklCreateMemoryAllocateInfo(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags memoryPropertyFlags) {
@@ -1290,7 +1306,7 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 #ifdef USE_GLSLANG
 	glslang_initialize_process();
 #endif
-	mBasicPipeline = vk::Pipeline{ vklCreateGraphicsPipeline(VklGraphicsPipelineConfig{
+	mBasicPipeline = vk::Pipeline{ createGraphicsPipelineInternal(VklGraphicsPipelineConfig{
 		// Vertex Shader from memory:
 			"#version 450\n"
 			"layout(location = 0) in vec3 position;\n"
@@ -1380,18 +1396,10 @@ void vklDestroyFramework()
 // Delete those pipelines which are no longer used due having been replaced after hot reloading
 void destroyOutdatedPipelines() 
 {
-	mPipelineGraveyard.erase(std::remove_if(
-			mPipelineGraveyard.begin(),
-			mPipelineGraveyard.end(),
-			[](const std::tuple<int64_t, VkPipeline>& element) { 
-				if (std::get<0>(element) < mFrameId) {
-					VKL_LOG("Destroying outdated pipeline with handle [" << std::get<1>(element) << "]");
-					vklDestroyGraphicsPipeline(std::get<1>(element));
-					return true;
-				}
-				return false;
-			}
-		), mPipelineGraveyard.end());
+	while (!mPipelineGraveyard.empty() && std::get<0>(*mPipelineGraveyard.begin()) < mFrameId) {
+		VKL_LOG("Destroying outdated pipeline with handle [" << std::get<1>(*mPipelineGraveyard.begin()) << "]");
+		destroyGraphicsPipelineInternal(std::get<1>(*mPipelineGraveyard.begin()));
+	}
 }
 
 double vklWaitForNextSwapchainImage()
@@ -2080,24 +2088,24 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 
 void vklHotReloadPipelines()
 {
-	for(auto it = mKnownPipelines.begin(); it != mKnownPipelines.end(); it++) {
+	VKL_LOG("About to hot-reload " << mUserKnownPipelines.size() << " known graphics pipelines...");
+	for(auto it = mUserKnownPipelines.begin(); it != mUserKnownPipelines.end(); it++) {
 		auto originalHandle = it->first;
 		std::get<0>(it->second).vertexShaderPath   = std::get<1>(it->second).c_str();
 		std::get<0>(it->second).fragmentShaderPath = std::get<2>(it->second).c_str();
 		auto newHandle = createGraphicsPipelineInternal(std::get<0>(it->second), std::get<3>(it->second));
 
-		auto mapping = mPipelineSurrogates.find(originalHandle);
-		if (mPipelineSurrogates.end() == mapping) {
-			mPipelineSurrogates[originalHandle] = newHandle;
-			continue;
-		}
-		// else:
-		mPipelineGraveyard.push_back(std::make_tuple(mFrameId + CONCURRENT_FRAMES, mapping->second));
+		// We're going to destroy one outdated pipeline in any case (regardless the mapping):
+		auto destroyHandle = getGraphicsPipelineOrItsSurrogate(originalHandle);
+		VKL_LOG("Scheduling " << destroyHandle << " for destruction");
+		mPipelineGraveyard.push_back(std::make_tuple(mFrameId + CONCURRENT_FRAMES, destroyHandle));
+
+		// And we have a new surrogate for the original handle:
 		mPipelineSurrogates[originalHandle] = newHandle;
 	}
 }
 
-void shaderHotReloadingCallback(GLFWwindow* glfw_window, int key, int scancode, int action, int mods) {
+void pipelineHotReloadingCallback(GLFWwindow* glfw_window, int key, int scancode, int action, int mods) {
 	if (action == GLFW_RELEASE && key == mKeyForShaderHotReloading && mods == mModKeysForShaderHotReloading) {
 		vklHotReloadPipelines();
 	}
@@ -2106,13 +2114,13 @@ void shaderHotReloadingCallback(GLFWwindow* glfw_window, int key, int scancode, 
 	}
 }
 
-void vklEnableShaderHotReloading(GLFWwindow* glfw_window, int glfw_key, int glfw_modifier_keys)
+void vklEnablePipelineHotReloading(GLFWwindow* glfw_window, int glfw_key, int glfw_modifier_keys)
 {
 	mCallbackWindow = glfw_window;
 	mKeyForShaderHotReloading = glfw_key;
 	mModKeysForShaderHotReloading = glfw_modifier_keys;
-	auto previousCallback = glfwSetKeyCallback(glfw_window, shaderHotReloadingCallback);
-	if (previousCallback != shaderHotReloadingCallback) {
+	auto previousCallback = glfwSetKeyCallback(glfw_window, pipelineHotReloadingCallback);
+	if (previousCallback != pipelineHotReloadingCallback) {
 		mPreviousKeyCallback = previousCallback;
 	}
 }
