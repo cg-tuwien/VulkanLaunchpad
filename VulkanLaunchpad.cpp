@@ -1397,7 +1397,6 @@ void vklDestroyFramework()
 void destroyOutdatedPipelines() 
 {
 	while (!mPipelineGraveyard.empty() && std::get<0>(*mPipelineGraveyard.begin()) < mFrameId) {
-		VKL_LOG("Destroying outdated pipeline with handle [" << std::get<1>(*mPipelineGraveyard.begin()) << "]");
 		destroyGraphicsPipelineInternal(std::get<1>(*mPipelineGraveyard.begin()));
 	}
 }
@@ -2097,7 +2096,6 @@ void vklHotReloadPipelines()
 
 		// We're going to destroy one outdated pipeline in any case (regardless the mapping):
 		auto destroyHandle = getGraphicsPipelineOrItsSurrogate(originalHandle);
-		VKL_LOG("Scheduling " << destroyHandle << " for destruction");
 		mPipelineGraveyard.push_back(std::make_tuple(mFrameId + CONCURRENT_FRAMES, destroyHandle));
 
 		// And we have a new surrogate for the original handle:
