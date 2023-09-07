@@ -644,8 +644,41 @@ glm::mat4 vklCreatePerspectiveProjectionMatrix(float field_of_view, float aspect
  */
 VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj);
 
+/*!
+ *  Triggers the unconditional hot-reloading of all known graphics pipelines.
+ */
 void vklHotReloadPipelines();
 
+/*!
+ *  Enables graphics pipeline hot-reloading to be triggered by users through a defined keyboard shortcut.
+ *  Pipeline hot-reloading can be super helpful during shader development. Pipelines containing the updated
+ *  shader code can be swapped under the hood during the application is running, without the need to restart 
+ *  the application.
+ *  
+ *  Preconditions in code to enable graphics pipeline hot-reloading:
+ *   - Either call vklEnablePipelineHotReloading once at initialization time, or manually invoke vklHotReloadPipelines!
+ *   - IMPORTANT: Use vklCmdBindPipeline(VkCommandBuffer, VkPipelineBindPoint, VkPipeline) instead of 
+ *                the Vulkan API's vkCmdBindPipeline(VkCommandBuffer, VkPipelineBindPoint, VkPipeline)!
+ * 
+ *  @param  glfw_window             GLFW window, which is required to establish a key callback
+ *  @param  glfw_key                Desired key which shall trigger pipelines to be hot-reloaded, 
+ *                                  as GLFW key code (e.g. GLFW_KEY_F5, or GLFW_KEY_R)
+ *  @param  glfw_modifier_keys      If desired, modifier keys can be added to the keyboard shortcut through this parameter.
+ *                                  Useful values are: GLFW_MOD_SHIFT, GLFW_MOD_CONTROL, or GLFW_MOD_ALT
+ *                                  A cobination of these is possible by OR-ing these values together.
+ *                                  If no modifier is desired, just pass 0 (default value).
+ */
 void vklEnablePipelineHotReloading(GLFWwindow* glfw_window, int glfw_key, int glfw_modifier_keys = 0);
 
+/*!
+ *  Replacement function for the Vulkan API's vkCmdBindPipeline function, adding support for pipeline hot-reloading,
+ *  by using the most up-to-date version of possibly hot-reloaded pipeline handles under the hood.
+ * 
+ *  Other than that, it is just a 1:1 proxy for vkCmdBindPipeline. All parameters are the same.
+ *  @param  commandBuffer           the command buffer that the pipeline will be bound to.
+ *  @param  pipelineBindPoint       a VkPipelineBindPoint value specifying to which bind point the pipeline is bound. 
+ *  @param  pipeline                the pipeline to be bound.
+ *                                  
+ *  More information can be found in the Vulkan specification: https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdBindPipeline.html
+ */
 void vklCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline);
