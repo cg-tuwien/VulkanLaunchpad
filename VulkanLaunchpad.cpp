@@ -419,7 +419,8 @@ std::vector<uint32_t> compileShaderSourceToSpirv(const std::string& shaderSource
 			      << "\n         Log[" << glslang_shader_get_info_log(shader) << "]"
 			      << "\n         Debug-Log[" << glslang_shader_get_info_debug_log(shader) << "]" << std::endl;
 
-		VKL_EXIT_WITH_ERROR("glslang_shader_preprocess failed for " + inputFilename);
+		// VKL_EXIT_WITH_ERROR("glslang_shader_preprocess failed for " + inputFilename);
+		return resultingSpirv;
 	}
 
 	if (!glslang_shader_parse(shader, &input))
@@ -428,7 +429,8 @@ std::vector<uint32_t> compileShaderSourceToSpirv(const std::string& shaderSource
 			      << "\n         Log[" << glslang_shader_get_info_log(shader) << "]"
 			      << "\n         Debug-Log[" << glslang_shader_get_info_debug_log(shader) << "]" << std::endl;
 
-		VKL_EXIT_WITH_ERROR("glslang_shader_parse failed for " + inputFilename);
+		// VKL_EXIT_WITH_ERROR("glslang_shader_parse failed for " + inputFilename);
+		return resultingSpirv;
 	}
 
 	glslang_program_t* program = glslang_program_create();
@@ -440,7 +442,8 @@ std::vector<uint32_t> compileShaderSourceToSpirv(const std::string& shaderSource
 			      << "\n         Log[" << glslang_shader_get_info_log(shader) << "]"
 			      << "\n         Debug-Log[" << glslang_shader_get_info_debug_log(shader) << "]" << std::endl;
 
-		VKL_EXIT_WITH_ERROR("glslang_program_link failed for " + inputFilename);
+		// VKL_EXIT_WITH_ERROR("glslang_program_link failed for " + inputFilename);
+		return resultingSpirv;
 	}
 
 	glslang_program_SPIRV_generate(program, input.stage);
@@ -524,6 +527,9 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromMe
 	}
 	auto spirv = compileShaderSourceToSpirv(shaderCode, shaderName, glslangStage);
 #endif
+	if (spirv.empty()) {
+		return std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{});
+	}
 	//                                                        | SPIR-V Code | Size must be specified in BYTE => * sizeof WORD   | Stage      |
 	return loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(spirv.data(), spirv.size() * sizeof(decltype(spirv)::value_type), shaderStage);
 }
@@ -562,9 +568,18 @@ VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& confi
 		? loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(config.vertexShaderPath, "vertex shader from memory", vk::ShaderStageFlagBits::eVertex)
 		: loadShaderFromFileAndCreateShaderModuleAndStageInfo(config.vertexShaderPath, vk::ShaderStageFlagBits::eVertex);
 
+	if (!std::get<vk::ShaderModule>(vertTpl)) {
+		return VK_NULL_HANDLE;
+	}
+
 	auto fragTpl = loadShadersFromMemoryInstead
 		? loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(config.fragmentShaderPath, "fragment shader from memory", vk::ShaderStageFlagBits::eFragment)
 		: loadShaderFromFileAndCreateShaderModuleAndStageInfo(config.fragmentShaderPath, vk::ShaderStageFlagBits::eFragment);
+
+	if (!std::get<vk::ShaderModule>(fragTpl)) {
+		mDevice.destroyShaderModule(std::get<vk::ShaderModule>(vertTpl));
+		return VK_NULL_HANDLE;
+	}
 
 	// Describe the shaders used:
 	std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages{ std::get<vk::PipelineShaderStageCreateInfo>(vertTpl), std::get<vk::PipelineShaderStageCreateInfo>(fragTpl) };
@@ -664,6 +679,9 @@ VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& confi
 VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
 {
 	auto graphicsPipelineHandle = createGraphicsPipelineInternal(config, loadShadersFromMemoryInstead);
+	if (VK_NULL_HANDLE == graphicsPipelineHandle) {
+        VKL_EXIT_WITH_ERROR("Failed to create graphics pipeline. Check console output if there were any problems with shader compilation!");
+	}
 	// Store for hot reloading, but only those handles, which the user requested explicitly (hence the split of createGraphicsPipelineInternal and vklCreateGraphicsPipeline):
 	mUserKnownPipelines[graphicsPipelineHandle] = std::make_tuple(config, std::string(config.vertexShaderPath), std::string(config.fragmentShaderPath), loadShadersFromMemoryInstead);
 	return graphicsPipelineHandle;
@@ -2093,6 +2111,9 @@ void vklHotReloadPipelines()
 		std::get<0>(it->second).vertexShaderPath   = std::get<1>(it->second).c_str();
 		std::get<0>(it->second).fragmentShaderPath = std::get<2>(it->second).c_str();
 		auto newHandle = createGraphicsPipelineInternal(std::get<0>(it->second), std::get<3>(it->second));
+		if (VK_NULL_HANDLE == newHandle) {
+			continue;
+		}
 
 		// We're going to destroy one outdated pipeline in any case (regardless the mapping):
 		auto destroyHandle = getGraphicsPipelineOrItsSurrogate(originalHandle);
