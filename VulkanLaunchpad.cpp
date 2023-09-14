@@ -418,8 +418,6 @@ std::vector<uint32_t> compileShaderSourceToSpirv(const std::string& shaderSource
 		std::cout << "\nERROR:   Failed to preprocess shader[" << inputFilename << "] of kind[" << to_string(shaderStage) << "]"
 			      << "\n         Log[" << glslang_shader_get_info_log(shader) << "]"
 			      << "\n         Debug-Log[" << glslang_shader_get_info_debug_log(shader) << "]" << std::endl;
-
-		// VKL_EXIT_WITH_ERROR("glslang_shader_preprocess failed for " + inputFilename);
 		return resultingSpirv;
 	}
 
@@ -428,8 +426,6 @@ std::vector<uint32_t> compileShaderSourceToSpirv(const std::string& shaderSource
 		std::cout << "\nERROR:   Failed to parse shader[" << inputFilename << "] of kind[" << to_string(shaderStage) << "]"
 			      << "\n         Log[" << glslang_shader_get_info_log(shader) << "]"
 			      << "\n         Debug-Log[" << glslang_shader_get_info_debug_log(shader) << "]" << std::endl;
-
-		// VKL_EXIT_WITH_ERROR("glslang_shader_parse failed for " + inputFilename);
 		return resultingSpirv;
 	}
 
@@ -441,8 +437,6 @@ std::vector<uint32_t> compileShaderSourceToSpirv(const std::string& shaderSource
 		std::cout << "\nERROR:   Failed to link shader[" << inputFilename << "] of kind[" << to_string(shaderStage) << "]"
 			      << "\n         Log[" << glslang_shader_get_info_log(shader) << "]"
 			      << "\n         Debug-Log[" << glslang_shader_get_info_debug_log(shader) << "]" << std::endl;
-
-		// VKL_EXIT_WITH_ERROR("glslang_program_link failed for " + inputFilename);
 		return resultingSpirv;
 	}
 
