@@ -175,6 +175,7 @@ Documentation sections:
 	- [Logging and Error Checking](#logging-and-error-checking)
 	- [Camera](#camera)
 - [Vulkan Memory Allocator (VMA)](#vulkan-memory-allocator-vma)
+- [Pipeline Hot-Reloading](#pipeline-hot-reloading)
 
 ### Structure
 
@@ -322,3 +323,13 @@ VkResult result = vmaCreateAllocator(&vma_allocator_create_info, &vma_allocator)
 and pass it to `vklInitFramework` to let Vulkan Launchpad do all internal memory allocations via VMA henceforth.
 
 Further information about VMA can be found in [VMA's documentation](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/).
+
+### Pipeline Hot-Reloading
+
+Pipeline hot-reloading (also known as "shader hot-reloading") is a feature which can be very handy especially during shader development. It allows to reload existing graphics pipelines (referred to through `VkPipeline` handles) during application runtime, without the need to restart the application. Pipeline hot-reloading in Vulkan Launchpad can be configured to be triggered through a keyboard shortcut, such as `F5` or `Ctrl+R`.
+
+**To enable pipeline hot-reloading in code:**          
+- Add a call to `vklEnablePipelineHotReloading(window, GLFW_KEY_F5);` before your render loop to register the `F5` key to trigger pipeline hot-reloading. The first parameter is expected to be a GLFW window pointer of type `GLFWwindow*`.
+- _Important:_ Use `vklCmdBindPipeline` as replacement for the Vulkan API's [`vkCmdBindPipeline`](https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdBindPipeline.html) function.
+
+_Note:_ The call to `vklEnablePipelineHotReloading` is optional. Pipeline hot-reloading can also be triggered manually through `vklHotReloadPipelines`.
