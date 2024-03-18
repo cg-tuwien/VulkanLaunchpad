@@ -202,7 +202,7 @@ void vklUpdateCamera(VklCameraHandle handle, double x, double y, bool moveForwar
 }
 
 
-void vklUpdateCamera(VklCameraHandle handle, dobule dt) {
+void vklUpdateCamera(VklCameraHandle handle, double dt) {
 	auto it = findCamera(handle);
 
 	if (mCameras.end() == it) {
