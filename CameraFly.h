@@ -19,8 +19,6 @@ struct VklCamera
 	float mPitch, mYaw;
 	glm::vec3 mPosition;
 	GLFWwindow* mWindow;
-	GLFWmousebuttonfun mPreviousMouseButtonFun;
-	GLFWscrollfun mPreviousScrollFun;
 	GLFWkeyfun mPreviousKeyFun;
 };
 

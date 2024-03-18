@@ -137,7 +137,6 @@ glm::mat4 vklGetCameraViewMatrix(VklCameraHandle handle)
 glm::mat4 vklGetCameraProjectionMatrix(VklCameraHandle handle)
 {
 	auto it = findCamera(handle);
-
 	if (mCameras.end() != it) {
 		return handle->mProjMatrix;
 	}
@@ -197,7 +196,7 @@ void vklUpdateCamera(VklCameraHandle handle, double x, double y, bool moveForwar
 	if (moveDown)
 		it->mPosition -= glm::vec3(0.0f, 1.0f, 0.0f) * verticalSpeed;
 
-	it->mViewMatrix = glm::lookAt(it->mPosition, it->mPosition + forward, glm::vec3(0.0f, 1.0f, 0.0f)); // Y is up
+	it->mViewMatrix = glm::lookAt(it->mPosition, it->mPosition + forward, glm::vec3(0.0f, 1.0f, 0.0f));
 	it->mMouseX = x;
 	it->mMouseY = y;
 }
