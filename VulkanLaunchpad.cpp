@@ -45,23 +45,28 @@
 #include <gli/texture2d.hpp>
 #endif
 
-vk::Instance mInstance                   = {};
-vk::SurfaceKHR mSurface                  = {};
-vk::PhysicalDevice mPhysicalDevice       = {};
-vk::Device mDevice                       = {};
-vk::DispatchLoaderStatic mDispatchLoader = {};
-vk::Queue mQueue                         = {};
-VklSwapchainConfig mSwapchainConfig      = {};
+vk::Instance mInstance                                          = {};
+vk::SurfaceKHR mSurface                                         = {};
+vk::PhysicalDevice mPhysicalDevice                              = {};
+vk::Device mDevice                                              = {};
+#if VK_HEADER_VERSION >= 302
+#define DISPATCH_LOADER_NAMESPACE vk::detail
+#else 
+#define DISPATCH_LOADER_NAMESPACE vk
+#endif
+DISPATCH_LOADER_NAMESPACE::DispatchLoaderStatic mDispatchLoader = {};
+vk::Queue mQueue                                                = {};
+VklSwapchainConfig mSwapchainConfig                             = {};
 std::vector<std::vector<vk::ClearValue>> mClearValues;
 
 #ifdef VKL_HAS_VMA
-VmaAllocator mVmaAllocator               = {};
-bool vklHasVmaAllocator()                { return VmaAllocator{} != mVmaAllocator; }
+VmaAllocator mVmaAllocator                                      = {};
+bool vklHasVmaAllocator()                                       { return VmaAllocator{} != mVmaAllocator; }
 #endif
 
-bool mFrameworkInitialized = false;
+bool mFrameworkInitialized                                      = false;
 
-vk::DispatchLoaderDynamic mDynamicDispatch;
+DISPATCH_LOADER_NAMESPACE::DispatchLoaderDynamic mDynamicDispatch;
 vk::ResultValueType<VULKAN_HPP_NAMESPACE::DebugUtilsMessengerEXT>::type mDebugUtilsMessenger;
 std::vector<std::vector<vk::ImageView>> mSwapchainImageViews; //< Will be the length of #swapchain images
 vk::PipelineStageFlags mSrcStages0;
@@ -1103,12 +1108,12 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	mSurface = vk::SurfaceKHR{ vk_surface };
 	mPhysicalDevice = vk::PhysicalDevice{ vk_physical_device };
 	mDevice = vk::Device{ vk_device };
-	mDispatchLoader = vk::DispatchLoaderStatic();
+	mDispatchLoader = DISPATCH_LOADER_NAMESPACE::DispatchLoaderStatic();
 	mQueue = vk::Queue{ vk_queue };
 	mSwapchainConfig = swapchain_config;
 
 	// Create a DYNAMIC DISPATCH LOADER:
-	mDynamicDispatch = vk::DispatchLoaderDynamic{ static_cast<VkInstance>(mInstance), vkGetInstanceProcAddr };
+	mDynamicDispatch = DISPATCH_LOADER_NAMESPACE::DispatchLoaderDynamic{ static_cast<VkInstance>(mInstance), vkGetInstanceProcAddr };
 	
 	// Test instance and add DEBUG UTILS MESSENGER:
 	mDebugUtilsMessenger = mInstance.createDebugUtilsMessengerEXT(vk::DebugUtilsMessengerCreateInfoEXT{
