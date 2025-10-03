@@ -2,6 +2,7 @@
  * Copyright (c) 2023 TU Wien, Institute of Visual Computing & Human-Centered Technology.
  */
 #include "Camera.h"
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 #include <list>
 #include <algorithm>

@@ -16,11 +16,11 @@ if(NOT HAS_PARENT)
         option(GIT_SUBMODULE "Check submodules during build" ON)
         if(GIT_SUBMODULE)
             message(STATUS "Submodule update")
-            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive --remote
                             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                             RESULT_VARIABLE GIT_SUBMOD_RESULT)
             if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-                message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+                message(FATAL_ERROR "git submodule update --init --recursive --remote failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
             endif()
         endif()
     endif()
@@ -62,7 +62,7 @@ add_subdirectory("${VKL_EXTERNAL_DIR}/glfw" EXCLUDE_FROM_ALL)
 add_subdirectory("${VKL_EXTERNAL_DIR}/glm" EXCLUDE_FROM_ALL)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set_target_properties(glslang MachineIndependent GenericCodeGen OSDependent SPIRV OGLCompiler PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glslang")
+set_target_properties(glslang MachineIndependent GenericCodeGen OSDependent SPIRV PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glslang")
 set_target_properties(glfw update_mappings PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glfw")
 
 #================================#
