@@ -77,7 +77,7 @@ vk::UniqueRenderPass mRenderpass;
 std::vector<vk::UniqueFramebuffer> mFramebuffers; //< Will be the length of #swapchain images
 bool mHasDepthAttachments = false;
 
-constexpr int CONCURRENT_FRAMES = 1;
+constexpr int CONCURRENT_FRAMES = 10;
 std::array<vk::UniqueSemaphore, CONCURRENT_FRAMES> mImageAvailableSemaphores;
 std::array<vk::UniqueSemaphore, CONCURRENT_FRAMES> mRenderFinishedSemaphores;
 std::array<vk::UniqueFence, CONCURRENT_FRAMES> mSyncHostWithDeviceFence;
