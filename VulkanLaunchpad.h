@@ -123,6 +123,12 @@ struct VklGraphicsPipelineConfig {
      */
     const char *fragmentShaderPath = nullptr;
 
+    /*! The path to a Slang shader, that contains both vertex and fragment shader code. The path can be provided relative to the "assets/shader/" directory.
+     * That means that it will be tried to first load from the given value prepended with "assets/shader/".
+     * Only if that fails, it will be tried to load from the given value directly.
+     */
+    const char *shaderPath = nullptr;
+
     /*!
      *	One description per buffer that is when rendering with a graphics pipeline.
      *	There are different approaches for this, most commonly:

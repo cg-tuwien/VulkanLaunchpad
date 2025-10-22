@@ -28,6 +28,9 @@
 #include <glslang/Include/glslang_c_interface.h>
 #endif
 
+#include <slang.h>
+#include <slang-com-ptr.h>
+
 #include <fstream>
 #include <iostream>
 #include <glm/glm.hpp>
@@ -561,24 +564,51 @@ VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& confi
     if (!loadShadersFromMemoryInstead && !vklFrameworkInitialized()) {
         VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
     }
-    // Create the graphics pipeline, describe every state of it
-	// Get tuples of <vk::ShaderModule, vk::PipelineShaderStageCreateInfo>
-	auto vertTpl = loadShadersFromMemoryInstead
-		? loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(config.vertexShaderPath, "vertex shader from memory", vk::ShaderStageFlagBits::eVertex)
-		: loadShaderFromFileAndCreateShaderModuleAndStageInfo(config.vertexShaderPath, vk::ShaderStageFlagBits::eVertex);
 
-	if (!std::get<vk::ShaderModule>(vertTpl)) {
-		return VK_NULL_HANDLE;
-	}
+    std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> vertTpl;
+    std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> fragTpl;
 
-	auto fragTpl = loadShadersFromMemoryInstead
-		? loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(config.fragmentShaderPath, "fragment shader from memory", vk::ShaderStageFlagBits::eFragment)
-		: loadShaderFromFileAndCreateShaderModuleAndStageInfo(config.fragmentShaderPath, vk::ShaderStageFlagBits::eFragment);
+    if (config.shaderPath != nullptr) {
+        // TODO: config.shaderPath. add function that loads slang files from disk/memory and compiles them to spir-v returns std::pair<std::tuple, std::tuple>
 
-	if (!std::get<vk::ShaderModule>(fragTpl)) {
-		mDevice.destroyShaderModule(std::get<vk::ShaderModule>(vertTpl));
-		return VK_NULL_HANDLE;
-	}
+        Slang::ComPtr<slang::IGlobalSession> slangGlobalSession;
+        slang::createGlobalSession(slangGlobalSession.writeRef());
+
+        slang::SessionDesc sessionDesc = {};
+        slang::TargetDesc targetDesc = {};
+        targetDesc.format = SLANG_SPIRV;
+        targetDesc.profile = slangGlobalSession->findProfile("spirv_1_5");
+        targetDesc.flags = 0;
+
+        sessionDesc.targets = &targetDesc;
+        sessionDesc.targetCount = 1;
+        sessionDesc.compilerOptionEntryCount = 0;
+
+        Slang::ComPtr<slang::ISession> session;
+        slangGlobalSession->createSession(sessionDesc, session.writeRef());
+
+        slang::IModule* slangModule = nullptr;
+
+    } else {
+        // Create the graphics pipeline, describe every state of it
+        // Get tuples of <vk::ShaderModule, vk::PipelineShaderStageCreateInfo>
+        vertTpl = loadShadersFromMemoryInstead
+            ? loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(config.vertexShaderPath, "vertex shader from memory", vk::ShaderStageFlagBits::eVertex)
+            : loadShaderFromFileAndCreateShaderModuleAndStageInfo(config.vertexShaderPath, vk::ShaderStageFlagBits::eVertex);
+
+        if (!std::get<vk::ShaderModule>(vertTpl)) {
+            return VK_NULL_HANDLE;
+        }
+
+        fragTpl = loadShadersFromMemoryInstead
+            ? loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(config.fragmentShaderPath, "fragment shader from memory", vk::ShaderStageFlagBits::eFragment)
+            : loadShaderFromFileAndCreateShaderModuleAndStageInfo(config.fragmentShaderPath, vk::ShaderStageFlagBits::eFragment);
+
+        if (!std::get<vk::ShaderModule>(fragTpl)) {
+            mDevice.destroyShaderModule(std::get<vk::ShaderModule>(vertTpl));
+            return VK_NULL_HANDLE;
+        }
+    }
 
 	// Describe the shaders used:
 	std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages{ std::get<vk::PipelineShaderStageCreateInfo>(vertTpl), std::get<vk::PipelineShaderStageCreateInfo>(fragTpl) };
@@ -1336,6 +1366,7 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 			"void main() {  \n"
 			"    color = vec4(1, 0, 0, 1); \n"
 			"}\n",
+        nullptr,
 		// Further config parameters:
 		{
 			VkVertexInputBindingDescription { 0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX }
