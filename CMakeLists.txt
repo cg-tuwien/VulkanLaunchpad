@@ -30,16 +30,37 @@ set(VKL_EXTERNAL_FOLDER "Dependencies")
 set(VKL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(VKL_EXTERNAL_DIR "${VKL_SOURCE_DIR}/external")
 
-if(UNIX AND NOT APPLE)
-	set(VKL_SLANG_DIR "")
-elseif(UNIX AND APPLE)
-	set(VKL_SLANG_DIR "")
-elseif(WIN32)
-	set(VKL_SLANG_DIR "${VKL_EXTERNAL_DIR}/slang-2025.19.1-windows-x86_64")
-	set(VKL_SLANG_DLLS
-		"${VKL_SLANG_DIR}/bin/slang.dll"
+set(SLANG_VERSION "2025.2")
+if(WIN32)
+	set(SLANG_OS "windows-x86_64")
+elseif(APPLE)
+	set(SLANG_OS "macos-aarch64")
+elseif(UNIX)
+	set(SLANG_OS "linux-x86_64")
+endif()
+
+include(FetchContent)
+FetchContent_Populate(slang_zip URL https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}-${SLANG_OS}.zip QUIET)
+message(STATUS "Slang dir: ${slang_zip_SOURCE_DIR}")
+add_library(slang SHARED IMPORTED GLOBAL)
+if(WIN32)
+	set_target_properties(slang PROPERTIES
+			IMPORTED_LOCATION ${slang_zip_SOURCE_DIR}/bin/slang.dll
+			IMPORTED_IMPLIB ${slang_zip_SOURCE_DIR}/lib/slang.lib
+			INTERFACE_INCLUDE_DIRECTORIES ${slang_zip_SOURCE_DIR}/include
+	)
+elseif(APPLE)
+	set_target_properties(slang PROPERTIES
+			IMPORTED_LOCATION ${slang_zip_SOURCE_DIR}/lib/libslang.dylib
+			INTERFACE_INCLUDE_DIRECTORIES ${slang_zip_SOURCE_DIR}/include
+	)
+elseif(UNIX)
+	set_target_properties(slang PROPERTIES
+			IMPORTED_LOCATION ${slang_zip_SOURCE_DIR}/lib/libslang.so
+			INTERFACE_INCLUDE_DIRECTORIES ${slang_zip_SOURCE_DIR}/include
 	)
 endif()
+add_library(slang::slang ALIAS slang)
 
 #================================#
 # Vulkan Launchpad Compiler      #
@@ -54,8 +75,6 @@ endif()
 #================================#
 # Vulkan Launchpad Dependencies  #
 #================================#
-list(APPEND CMAKE_PREFIX_PATH "${VKL_SLANG_DIR}/cmake")
-find_package(slang CONFIG REQUIRED)
 
 find_package(Vulkan REQUIRED)
 set(ENABLE_GLSLANG_BINARIES OFF)
@@ -92,14 +111,13 @@ add_library(${PROJECT_NAME} STATIC ${VKL_HEADER_FILES} ${VKL_SOURCE_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC Vulkan::Vulkan glm::glm glfw
-	PRIVATE glslang MachineIndependent GenericCodeGen OSDependent SPIRV slang::slang slang::gfx
+	PRIVATE glslang MachineIndependent GenericCodeGen OSDependent SPIRV slang::slang
 )
 target_include_directories(${PROJECT_NAME} 
 	INTERFACE "${VKL_SOURCE_DIR}"
 	PUBLIC "${VKL_EXTERNAL_DIR}/include"
 )
 add_dependencies(${PROJECT_NAME} glfw glslang MachineIndependent GenericCodeGen OSDependent SPIRV slang::slang)
-set_target_properties(${PROJECT_NAME} PROPERTIES INTERFACE_SLANG_DLLS "${VKL_SLANG_DLLS}")
 
 #==================================#
 # Unset not needed cache variables #
