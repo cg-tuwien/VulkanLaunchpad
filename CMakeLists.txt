@@ -1,30 +1,11 @@
 cmake_minimum_required(VERSION 3.14)
+include(FetchContent)
 
 #================================#
 # Vulkan Launchpad Project       #
 #================================#
 
 project(VulkanLaunchpad VERSION 0.1.0 LANGUAGES CXX)
-
-# check if this is root
-get_directory_property(HAS_PARENT PARENT_DIRECTORY)
-
-if(NOT HAS_PARENT)
-    find_package(Git QUIET)
-    if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-    # Update submodules as needed
-        option(GIT_SUBMODULE "Check submodules during build" ON)
-        if(GIT_SUBMODULE)
-            message(STATUS "Submodule update")
-            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive --remote
-                            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                            RESULT_VARIABLE GIT_SUBMOD_RESULT)
-            if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-                message(FATAL_ERROR "git submodule update --init --recursive --remote failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-            endif()
-        endif()
-    endif()
-endif()
 
 set(VKL_EXTERNAL_FOLDER "Dependencies")
 set(VKL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -53,14 +34,41 @@ set(ENABLE_PCH OFF)
 set(ENABLE_OPT OFF)
 set(ENABLE_SPVREMAPPER OFF)
 set(BUILD_EXTERNAL OFF)
-add_subdirectory("${VKL_EXTERNAL_DIR}/glslang" EXCLUDE_FROM_ALL)
 set(GLFW_BUILD_EXAMPLES OFF)
 set(GLFW_BUILD_TESTS OFF)
 set(GLFW_BUILD_DOCS OFF)
 set(GLFW_INSTALL OFF)
 set(GLFW_BUILD_WAYLAND OFF)
-add_subdirectory("${VKL_EXTERNAL_DIR}/glfw" EXCLUDE_FROM_ALL)
-add_subdirectory("${VKL_EXTERNAL_DIR}/glm" EXCLUDE_FROM_ALL)
+set(VKL_GLFW_VERSION "3.4" CACHE STRING "VulkanLaunchpad glfw git tag")
+set(VKL_GLSLANG_VERSION "16.0.0" CACHE STRING "VulkanLaunchpad glslang git tag")
+set(VKL_GLM_VERSION "1.0.2" CACHE STRING "VulkanLaunchpad glm git tag")
+
+message(DEBUG "glfw version: ${VKL_GLFW_VERSION}")
+FetchContent_Declare(
+	glfw
+	URL "https://github.com/glfw/glfw/archive/refs/tags/${VKL_GLFW_VERSION}.zip"
+	DOWNLOAD_EXTRACT_TIMESTAMP false
+	EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(glfw)
+
+message(DEBUG "glslang version: ${VKL_GLSLANG_VERSION}")
+FetchContent_Declare(
+	glslang
+	URL "https://github.com/KhronosGroup/glslang/archive/refs/tags/${VKL_GLSLANG_VERSION}.zip"
+	DOWNLOAD_EXTRACT_TIMESTAMP false
+	EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(glslang)
+
+message(DEBUG "glm version: ${VKL_GLM_VERSION}")
+FetchContent_Declare(
+	glm
+	URL "https://github.com/g-truc/glm/archive/refs/tags/${VKL_GLM_VERSION}.zip"
+	DOWNLOAD_EXTRACT_TIMESTAMP false
+	EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(glm)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_target_properties(glslang MachineIndependent GenericCodeGen OSDependent SPIRV PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glslang")
