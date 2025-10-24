@@ -470,8 +470,7 @@ std::vector<uint32_t> compileShaderSourceToSpirv(const std::string& shaderSource
 }
 
 // Creates a shader module from the given Spir-V code, returns the created shader module and its create info.
-// The entry point is "main" always
-std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(const uint32_t* spirv, size_t byteSize, const vk::ShaderStageFlagBits shaderStage)
+std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(const uint32_t* spirv, size_t byteSize, const vk::ShaderStageFlagBits shaderStage, const char* entryPoint = "main")
 {
 	auto moduleCreateInfo = vk::ShaderModuleCreateInfo{}
 		.setCodeSize(byteSize)
@@ -482,7 +481,7 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromSp
 	auto shaderStageCreateInfo = vk::PipelineShaderStageCreateInfo{}
 		.setStage(shaderStage)
 		.setModule(shaderModule)
-		.setPName("main"); // entry point
+		.setPName(entryPoint); // entry point
 
 	return std::make_tuple(shaderModule, shaderStageCreateInfo);
 }
@@ -559,6 +558,228 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromFi
 	return loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(content, path, shaderStage);
 }
 
+std::pair<std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>, std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>> loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(const std::string& shaderCode, const std::string& shaderName)
+{
+    Slang::ComPtr<slang::IGlobalSession> slangGlobalSession;
+    auto globalSlangSessionResult = slang::createGlobalSession(slangGlobalSession.writeRef());
+    if (SLANG_FAILED(globalSlangSessionResult)) {
+        VKL_EXIT_WITH_ERROR("Failed to create Slang global session.");
+    }
+
+    slang::SessionDesc sessionDesc = {};
+    slang::TargetDesc targetDesc = {};
+    targetDesc.format = SLANG_SPIRV;
+    targetDesc.profile = slangGlobalSession->findProfile("spirv_1_3");
+
+    slang::CompilerOptionEntry compilerOptionEntryPointName;
+    compilerOptionEntryPointName.name = slang::CompilerOptionName::VulkanUseEntryPointName;
+    compilerOptionEntryPointName.value.kind = slang::CompilerOptionValueKind::Int;
+    compilerOptionEntryPointName.value.intValue0 = 1;
+
+    std::array<slang::CompilerOptionEntry, 1> compilerOptions = {
+        compilerOptionEntryPointName
+    };
+
+    sessionDesc.targets = &targetDesc;
+    sessionDesc.targetCount = 1;
+    sessionDesc.compilerOptionEntries = compilerOptions.data();
+    sessionDesc.compilerOptionEntryCount = compilerOptions.size();
+
+    Slang::ComPtr<slang::ISession> session;
+    auto slangSessionResult = slangGlobalSession->createSession(sessionDesc, session.writeRef());
+    if (SLANG_FAILED(slangSessionResult)) {
+        VKL_EXIT_WITH_ERROR("Failed to create Slang session.");
+    }
+
+    slang::IModule* slangModule;
+    {
+        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        slangModule = session->loadModuleFromSourceString(
+            shaderName.c_str(),
+            nullptr,
+            shaderCode.c_str(),
+            diagnosticsBlob.writeRef()
+        );
+        if (diagnosticsBlob != nullptr) {
+            std::cout << "\nERROR:   Failed to load shader[" << shaderName << "]"
+                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
+            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+        }
+    }
+
+    Slang::ComPtr<slang::IEntryPoint> vertexEntryPoint;
+    Slang::ComPtr<slang::IEntryPoint> fragmentEntryPoint;
+
+    slangModule->findEntryPointByName("vertexMain", vertexEntryPoint.writeRef());
+    if (!vertexEntryPoint) {
+        std::cout << "\nERROR:   Failed to load shader[" << shaderName << "]"
+                  << "\n         Error getting entry point \"vertexMain\""
+                  << "\n         Make sure to provide a function  \"vertexMain\" annotated with [shader(\"vertex\")]" << std::endl;
+        return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+    }
+
+    slangModule->findEntryPointByName("fragmentMain", fragmentEntryPoint.writeRef());
+    if (!fragmentEntryPoint) {
+        std::cout << "\nERROR:   Failed to load shader[" << shaderName << "]"
+                  << "\n         Error getting entry point \"fragmentMain\""
+                  << "\n         Make sure to provide a function  \"fragmentMain\" annotated with [shader(\"fragment\")]" << std::endl;
+        return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+    }
+
+    std::array<slang::IComponentType*, 2> componentTypesVertex = { slangModule, vertexEntryPoint };
+    std::array<slang::IComponentType*, 2> componentTypesFragment = { slangModule, fragmentEntryPoint };
+
+    Slang::ComPtr<slang::IComponentType> vertexProgram;
+    {
+        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        SlangResult result = session->createCompositeComponentType(
+            componentTypesVertex.data(),
+            componentTypesVertex.size(),
+            vertexProgram.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+
+        if (diagnosticsBlob != nullptr) {
+            std::cout << "\nERROR:   Failed to compose shader[" << shaderName << "] for vertex stage"
+                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
+        }
+        if (SLANG_FAILED(result)) {
+            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+        }
+    }
+
+    Slang::ComPtr<slang::IComponentType> fragmentProgram;
+    {
+        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        SlangResult result = session->createCompositeComponentType(
+            componentTypesFragment.data(),
+            componentTypesFragment.size(),
+            fragmentProgram.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+
+        if (diagnosticsBlob != nullptr) {
+            std::cout << "\nERROR:   Failed to compose shader[" << shaderName << "] for fragment stage"
+                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
+        }
+        if (SLANG_FAILED(result)) {
+            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+        }
+    }
+
+    Slang::ComPtr<slang::IComponentType> linkedVertexProgram;
+    {
+        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        SlangResult result = vertexProgram->link(
+            linkedVertexProgram.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+
+        if (diagnosticsBlob != nullptr) {
+            std::cout << "\nERROR:   Failed to link shader[" << shaderName << "] for vertex stage"
+                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
+        }
+        if (SLANG_FAILED(result)) {
+            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+        }
+    }
+
+    Slang::ComPtr<slang::IComponentType> linkedFragmentProgram;
+    {
+        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        SlangResult result = fragmentProgram->link(
+            linkedFragmentProgram.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+
+        if (diagnosticsBlob != nullptr) {
+            std::cout << "\nERROR:   Failed to link shader[" << shaderName << "] for fragment stage"
+                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
+        }
+        if (SLANG_FAILED(result)) {
+            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+        }
+    }
+
+    Slang::ComPtr<slang::IBlob> spirvVertexCode;
+    {
+        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        SlangResult result = linkedVertexProgram->getEntryPointCode(
+            0,
+            0,
+            spirvVertexCode.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+
+        if (diagnosticsBlob != nullptr) {
+            std::cout << "\nERROR:   Failed to get entry point code in shader[" << shaderName << "] for vertex stage"
+                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
+        }
+        if (SLANG_FAILED(result)) {
+            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+        }
+    }
+
+    Slang::ComPtr<slang::IBlob> spirvFragmentCode;
+    {
+        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        SlangResult result = linkedFragmentProgram->getEntryPointCode(
+            0,
+            0,
+            spirvFragmentCode.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+
+        if (diagnosticsBlob != nullptr) {
+            std::cout << "\nERROR:   Failed to get entry point code in shader[" << shaderName << "] for fragment stage"
+                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
+        }
+        if (SLANG_FAILED(result)) {
+            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+        }
+    }
+
+    auto vertexTpl = loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(
+        static_cast<const uint32_t*>(spirvVertexCode->getBufferPointer()),
+        spirvVertexCode->getBufferSize(),
+        vk::ShaderStageFlagBits::eVertex,
+        "vertexMain"
+    );
+
+    auto fragmentTpl = loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(
+        static_cast<const uint32_t*>(spirvFragmentCode->getBufferPointer()),
+        spirvFragmentCode->getBufferSize(),
+        vk::ShaderStageFlagBits::eFragment,
+        "fragmentMain"
+    );
+
+
+    return {vertexTpl, fragmentTpl};
+}
+
+std::pair<std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>, std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>> loadSlangShaderFromFileAndCreateShaderModulesAndStageInfos(const std::string& shader_filename)
+{
+    std::string path = {};
+
+    std::ifstream infile(shader_filename);
+    if (infile.good()) {
+        path = shader_filename;
+        VKL_LOG("Loading shader file from path[" << path << "]...");
+    }
+
+    if (path.empty()) { // Fail if shader file could not be found:
+        VKL_EXIT_WITH_ERROR("Unable to load file[" << shader_filename << "].");
+    }
+
+    std::ifstream ifs(path);
+    std::string content(
+        (std::istreambuf_iterator<char>(ifs)),
+        (std::istreambuf_iterator<char>())
+    );
+
+    return loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(content, path);
+}
+
 VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
 {
     if (!loadShadersFromMemoryInstead && !vklFrameworkInitialized()) {
@@ -569,25 +790,20 @@ VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& confi
     std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> fragTpl;
 
     if (config.shaderPath != nullptr) {
-        // TODO: config.shaderPath. add function that loads slang files from disk/memory and compiles them to spir-v returns std::pair<std::tuple, std::tuple>
+        std::tie(vertTpl, fragTpl) = loadShadersFromMemoryInstead
+            ? loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(config.shaderPath, "slang shader from memory")
+            : loadSlangShaderFromFileAndCreateShaderModulesAndStageInfos(config.shaderPath);
 
-        Slang::ComPtr<slang::IGlobalSession> slangGlobalSession;
-        slang::createGlobalSession(slangGlobalSession.writeRef());
+        if (!std::get<vk::ShaderModule>(vertTpl) || !std::get<vk::ShaderModule>(fragTpl)) {
+            if (std::get<vk::ShaderModule>(vertTpl)) {
+                mDevice.destroyShaderModule(std::get<vk::ShaderModule>(vertTpl));
+            }
+            if (std::get<vk::ShaderModule>(fragTpl)) {
+                mDevice.destroyShaderModule(std::get<vk::ShaderModule>(fragTpl));
+            }
 
-        slang::SessionDesc sessionDesc = {};
-        slang::TargetDesc targetDesc = {};
-        targetDesc.format = SLANG_SPIRV;
-        targetDesc.profile = slangGlobalSession->findProfile("spirv_1_5");
-        targetDesc.flags = 0;
-
-        sessionDesc.targets = &targetDesc;
-        sessionDesc.targetCount = 1;
-        sessionDesc.compilerOptionEntryCount = 0;
-
-        Slang::ComPtr<slang::ISession> session;
-        slangGlobalSession->createSession(sessionDesc, session.writeRef());
-
-        slang::IModule* slangModule = nullptr;
+            return VK_NULL_HANDLE;
+        }
 
     } else {
         // Create the graphics pipeline, describe every state of it
@@ -1354,19 +1570,33 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	glslang_initialize_process();
 #endif
 	mBasicPipeline = vk::Pipeline{ createGraphicsPipelineInternal(VklGraphicsPipelineConfig{
-		// Vertex Shader from memory:
-			"#version 450\n"
-			"layout(location = 0) in vec3 position;\n"
-			"void main() {\n"
-			"    gl_Position = vec4(position.x, -position.y, position.z, 1);\n"
-			"}\n",
-		// Fragment shader from memory:
-			"#version 450\n"
-			"layout(location = 0) out vec4 color; \n"
-			"void main() {  \n"
-			"    color = vec4(1, 0, 0, 1); \n"
-			"}\n",
+		nullptr,
         nullptr,
+        "struct VSInput {\n"
+        "   float3 position : POSITION;\n"
+        "};\n"
+        "\n"
+        "struct VSOutput {\n"
+        "   float4 position : SV_Position;\n"
+        "};\n"
+        "\n"
+        "struct FSOutput {\n"
+        "   float4 color : SV_Target;\n"
+        "};\n"
+        "\n"
+        "[shader(\"vertex\")]\n"
+        "VSOutput vertexMain(VSInput input) {\n"
+        "   VSOutput output;\n"
+        "   output.position = float4(input.position.x, -input.position.y, input.position.z, 1.0);\n"
+        "   return output;\n"
+        "}\n"
+        "\n"
+        "[shader(\"fragment\")]\n"
+        "FSOutput fragmentMain() {\n"
+        "   FSOutput output;\n"
+        "   output.color = float4(1.0, 0.0, 0.0, 1.0);\n"
+        "   return output;\n"
+        "}\n",
 		// Further config parameters:
 		{
 			VkVertexInputBindingDescription { 0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX }

@@ -30,7 +30,7 @@ set(VKL_EXTERNAL_FOLDER "Dependencies")
 set(VKL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(VKL_EXTERNAL_DIR "${VKL_SOURCE_DIR}/external")
 
-set(SLANG_VERSION "2025.2")
+set(SLANG_VERSION "2025.19.1")
 if(WIN32)
 	set(SLANG_OS "windows-x86_64")
 elseif(APPLE)
@@ -45,7 +45,8 @@ message(STATUS "Slang dir: ${slang_zip_SOURCE_DIR}")
 add_library(slang SHARED IMPORTED GLOBAL)
 if(WIN32)
 	set_target_properties(slang PROPERTIES
-			IMPORTED_LOCATION ${slang_zip_SOURCE_DIR}/bin/slang.dll
+			IMPORTED_LOCATION_SLANG  ${slang_zip_SOURCE_DIR}/bin/slang.dll
+			IMPORTED_LOCATION_SLANG_GLSLANG ${slang_zip_SOURCE_DIR}/bin/slang-glslang.dll
 			IMPORTED_IMPLIB ${slang_zip_SOURCE_DIR}/lib/slang.lib
 			INTERFACE_INCLUDE_DIRECTORIES ${slang_zip_SOURCE_DIR}/include
 	)
