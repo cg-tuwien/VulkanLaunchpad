@@ -576,8 +576,14 @@ std::pair<std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>, std::
     compilerOptionEntryPointName.value.kind = slang::CompilerOptionValueKind::Int;
     compilerOptionEntryPointName.value.intValue0 = 1;
 
-    std::array<slang::CompilerOptionEntry, 1> compilerOptions = {
-        compilerOptionEntryPointName
+    slang::CompilerOptionEntry compilerOptionOptimization;
+    compilerOptionOptimization.name = slang::CompilerOptionName::Optimization;
+    compilerOptionOptimization.value.kind = slang::CompilerOptionValueKind::Int;
+    compilerOptionOptimization.value.intValue0 = 1;
+
+    std::array<slang::CompilerOptionEntry, 2> compilerOptions = {
+        compilerOptionEntryPointName,
+        compilerOptionOptimization
     };
 
     sessionDesc.targets = &targetDesc;
