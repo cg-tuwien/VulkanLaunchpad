@@ -20,7 +20,6 @@ elseif(UNIX)
 	set(SLANG_OS "linux-x86_64")
 endif()
 
-include(FetchContent)
 FetchContent_Populate(slang_zip URL https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}-${SLANG_OS}.zip QUIET)
 message(STATUS "Slang dir: ${slang_zip_SOURCE_DIR}")
 add_library(slang SHARED IMPORTED GLOBAL)
