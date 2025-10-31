@@ -58,10 +58,8 @@ endif()
 #================================#
 
 find_package(Vulkan REQUIRED)
-set(ENABLE_GLSLANG_BINARIES OFF)
 set(ENABLE_HLSL OFF)
 set(ENABLE_CTEST OFF)
-set(ENABLE_GLSLANG_INSTALL OFF)
 set(ENABLE_PCH OFF)
 set(ENABLE_OPT OFF)
 set(ENABLE_SPVREMAPPER OFF)
@@ -72,7 +70,6 @@ set(GLFW_BUILD_DOCS OFF)
 set(GLFW_INSTALL OFF)
 set(GLFW_BUILD_WAYLAND OFF)
 set(VKL_GLFW_VERSION "3.4" CACHE STRING "VulkanLaunchpad glfw git tag")
-set(VKL_GLSLANG_VERSION "16.0.0" CACHE STRING "VulkanLaunchpad glslang git tag")
 set(VKL_GLM_VERSION "1.0.2" CACHE STRING "VulkanLaunchpad glm git tag")
 
 message(DEBUG "glfw version: ${VKL_GLFW_VERSION}")
@@ -84,15 +81,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
-message(DEBUG "glslang version: ${VKL_GLSLANG_VERSION}")
-FetchContent_Declare(
-	glslang
-	URL "https://github.com/KhronosGroup/glslang/archive/refs/tags/${VKL_GLSLANG_VERSION}.zip"
-	DOWNLOAD_EXTRACT_TIMESTAMP false
-	EXCLUDE_FROM_ALL
-)
-FetchContent_MakeAvailable(glslang)
-
 message(DEBUG "glm version: ${VKL_GLM_VERSION}")
 FetchContent_Declare(
 	glm
@@ -103,7 +91,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set_target_properties(glslang MachineIndependent GenericCodeGen OSDependent SPIRV PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glslang")
 set_target_properties(glfw update_mappings PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glfw")
 
 #================================#
@@ -119,25 +106,23 @@ add_library(${PROJECT_NAME} STATIC ${VKL_HEADER_FILES} ${VKL_SOURCE_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC Vulkan::Vulkan glm::glm glfw
-	PRIVATE glslang MachineIndependent GenericCodeGen OSDependent SPIRV slang::slang
+	PRIVATE slang::slang
 )
 target_include_directories(${PROJECT_NAME} 
 	INTERFACE "${VKL_SOURCE_DIR}"
 	PUBLIC "${VKL_EXTERNAL_DIR}/include"
 )
-add_dependencies(${PROJECT_NAME} glfw glslang MachineIndependent GenericCodeGen OSDependent SPIRV slang::slang)
+add_dependencies(${PROJECT_NAME} glfw slang::slang)
 
 #==================================#
 # Unset not needed cache variables #
 #==================================#
 
 unset(ENABLE_EXCEPTIONS CACHE)
-unset(ENABLE_GLSLANG_JS CACHE)
 unset(ENABLE_HLSL CACHE)
 unset(ENABLE_OPT CACHE)
 unset(ENABLE_RTTI CACHE)
 unset(ENABLE_SPVREMAPPER CACHE)
-unset(SKIP_GLSLANG_INSTALL CACHE)
 
 unset(GLFW_USE_HYBRID_HPG CACHE)
 unset(GLFW_VULKAN_STATIC CACHE)

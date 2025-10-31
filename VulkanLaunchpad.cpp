@@ -15,18 +15,9 @@
 #include <variant>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tinyobjloader/tiny_obj_loader.h>
-//#define USE_SHADERC
-#define USE_GLSLANG
 
 // Always use GLI, since the manual implementation of DDS loading does not currently work.
 #define USE_GLI
-
-#ifdef USE_SHADERC
-#include <shaderc/shaderc.hpp>
-#endif
-#ifdef USE_GLSLANG
-#include <glslang/Include/glslang_c_interface.h>
-#endif
 
 #include <slang.h>
 #include <slang-com-ptr.h>
@@ -110,7 +101,7 @@ GLFWwindow* mCallbackWindow = nullptr;
 GLFWkeyfun mPreviousKeyCallback = nullptr;
 int mKeyForShaderHotReloading = 0;
 int mModKeysForShaderHotReloading = 0;
-std::unordered_map<VkPipeline, std::tuple<VklGraphicsPipelineConfig, std::string, std::string, bool>> mUserKnownPipelines;
+std::unordered_map<VkPipeline, std::tuple<VklGraphicsPipelineConfig, std::pair<std::string, std::string>, std::pair<std::string, std::string>, bool>> mUserKnownPipelines;
 std::unordered_map<VkPipeline, VkPipeline> mPipelineSurrogates;
 std::deque<std::tuple<int64_t, VkPipeline>> mPipelineGraveyard;
 
@@ -188,287 +179,6 @@ const char* to_string(VkResult result)
 	}
 }
 
-#ifdef USE_SHADERC
-std::string to_string(shaderc_shader_kind kind)
-{
-	switch (kind) {
-	case shaderc_vertex_shader: return "shaderc_vertex_shader";
-	case shaderc_fragment_shader: return "shaderc_fragment_shader";
-	case shaderc_compute_shader: return "shaderc_compute_shader";
-	case shaderc_geometry_shader: return "shaderc_geometry_shader";
-	case shaderc_tess_control_shader: return "shaderc_tess_control_shader";
-	case shaderc_tess_evaluation_shader: return "shaderc_tess_evaluation_shader";
-	case shaderc_glsl_infer_from_source: return "shaderc_glsl_infer_from_source";
-	case shaderc_glsl_default_vertex_shader: return "shaderc_glsl_default_vertex_shader";
-	case shaderc_glsl_default_fragment_shader: return "shaderc_glsl_default_fragment_shader";
-	case shaderc_glsl_default_compute_shader: return "shaderc_glsl_default_compute_shader";
-	case shaderc_glsl_default_geometry_shader: return "shaderc_glsl_default_geometry_shader";
-	case shaderc_glsl_default_tess_control_shader: return "shaderc_glsl_default_tess_control_shader";
-	case shaderc_glsl_default_tess_evaluation_shader: return "shaderc_glsl_default_tess_evaluation_shader";
-	case shaderc_spirv_assembly: return "shaderc_spirv_assembly";
-	case shaderc_raygen_shader: return "shaderc_raygen_shader";
-	case shaderc_anyhit_shader: return "shaderc_anyhit_shader";
-	case shaderc_closesthit_shader: return "shaderc_closesthit_shader";
-	case shaderc_miss_shader: return "shaderc_miss_shader";
-	case shaderc_intersection_shader: return "shaderc_intersection_shader";
-	case shaderc_callable_shader: return "shaderc_callable_shader";
-	case shaderc_glsl_default_raygen_shader: return "shaderc_glsl_default_raygen_shader";
-	case shaderc_glsl_default_anyhit_shader: return "shaderc_glsl_default_anyhit_shader";
-	case shaderc_glsl_default_closesthit_shader: return "shaderc_glsl_default_closesthit_shader";
-	case shaderc_glsl_default_miss_shader: return "shaderc_glsl_default_miss_shader";
-	case shaderc_glsl_default_intersection_shader: return "shaderc_glsl_default_intersection_shader";
-	case shaderc_glsl_default_callable_shader: return "shaderc_glsl_default_callable_shader";
-	case shaderc_task_shader: return "shaderc_task_shader";
-	case shaderc_mesh_shader: return "shaderc_mesh_shader";
-	case shaderc_glsl_default_task_shader: return "shaderc_glsl_default_task_shader";
-	case shaderc_glsl_default_mesh_shader: return "shaderc_glsl_default_mesh_shader";
-	default: return std::to_string(kind);
-	}
-}
-#endif
-#ifdef USE_GLSLANG
-std::string to_string(glslang_stage_t stage)
-{
-	switch (stage) {
-	case GLSLANG_STAGE_VERTEX: return "GLSLANG_STAGE_VERTEX";
-	case GLSLANG_STAGE_TESSCONTROL: return "GLSLANG_STAGE_TESSCONTROL";
-	case GLSLANG_STAGE_TESSEVALUATION: return "GLSLANG_STAGE_TESSEVALUATION";
-	case GLSLANG_STAGE_GEOMETRY: return "GLSLANG_STAGE_GEOMETRY";
-	case GLSLANG_STAGE_FRAGMENT: return "GLSLANG_STAGE_FRAGMENT";
-	case GLSLANG_STAGE_COMPUTE: return "GLSLANG_STAGE_COMPUTE";
-	case GLSLANG_STAGE_RAYGEN_NV: return "GLSLANG_STAGE_RAYGEN_NV";
-	case GLSLANG_STAGE_INTERSECT_NV: return "GLSLANG_STAGE_INTERSECT_NV";
-	case GLSLANG_STAGE_ANYHIT_NV: return "GLSLANG_STAGE_ANYHIT_NV";
-	case GLSLANG_STAGE_CLOSESTHIT_NV: return "GLSLANG_STAGE_CLOSESTHIT_NV";
-	case GLSLANG_STAGE_MISS_NV: return "GLSLANG_STAGE_MISS_NV";
-	case GLSLANG_STAGE_CALLABLE_NV: return "GLSLANG_STAGE_CALLABLE_NV";
-	case GLSLANG_STAGE_TASK_NV: return "GLSLANG_STAGE_TASK_NV";
-	case GLSLANG_STAGE_MESH_NV: return "GLSLANG_STAGE_MESH_NV";
-	default: return std::to_string(stage);
-	}
-}
-
-glslang_resource_t get_default_resource() {
-	glslang_resource_t r = {
-		/* .MaxLights = */ 32,
-		/* .MaxClipPlanes = */ 6,
-		/* .MaxTextureUnits = */ 32,
-		/* .MaxTextureCoords = */ 32,
-		/* .MaxVertexAttribs = */ 64,
-		/* .MaxVertexUniformComponents = */ 4096,
-		/* .MaxVaryingFloats = */ 64,
-		/* .MaxVertexTextureImageUnits = */ 32,
-		/* .MaxCombinedTextureImageUnits = */ 80,
-		/* .MaxTextureImageUnits = */ 32,
-		/* .MaxFragmentUniformComponents = */ 4096,
-		/* .MaxDrawBuffers = */ 32,
-		/* .MaxVertexUniformVectors = */ 128,
-		/* .MaxVaryingVectors = */ 8,
-		/* .MaxFragmentUniformVectors = */ 16,
-		/* .MaxVertexOutputVectors = */ 16,
-		/* .MaxFragmentInputVectors = */ 15,
-		/* .MinProgramTexelOffset = */ -8,
-		/* .MaxProgramTexelOffset = */ 7,
-		/* .MaxClipDistances = */ 8,
-		/* .MaxComputeWorkGroupCountX = */ 65535,
-		/* .MaxComputeWorkGroupCountY = */ 65535,
-		/* .MaxComputeWorkGroupCountZ = */ 65535,
-		/* .MaxComputeWorkGroupSizeX = */ 1024,
-		/* .MaxComputeWorkGroupSizeY = */ 1024,
-		/* .MaxComputeWorkGroupSizeZ = */ 64,
-		/* .MaxComputeUniformComponents = */ 1024,
-		/* .MaxComputeTextureImageUnits = */ 16,
-		/* .MaxComputeImageUniforms = */ 8,
-		/* .MaxComputeAtomicCounters = */ 8,
-		/* .MaxComputeAtomicCounterBuffers = */ 1,
-		/* .MaxVaryingComponents = */ 60,
-		/* .MaxVertexOutputComponents = */ 64,
-		/* .MaxGeometryInputComponents = */ 64,
-		/* .MaxGeometryOutputComponents = */ 128,
-		/* .MaxFragmentInputComponents = */ 128,
-		/* .MaxImageUnits = */ 8,
-		/* .MaxCombinedImageUnitsAndFragmentOutputs = */ 8,
-		/* .MaxCombinedShaderOutputResources = */ 8,
-		/* .MaxImageSamples = */ 0,
-		/* .MaxVertexImageUniforms = */ 0,
-		/* .MaxTessControlImageUniforms = */ 0,
-		/* .MaxTessEvaluationImageUniforms = */ 0,
-		/* .MaxGeometryImageUniforms = */ 0,
-		/* .MaxFragmentImageUniforms = */ 8,
-		/* .MaxCombinedImageUniforms = */ 8,
-		/* .MaxGeometryTextureImageUnits = */ 16,
-		/* .MaxGeometryOutputVertices = */ 256,
-		/* .MaxGeometryTotalOutputComponents = */ 1024,
-		/* .MaxGeometryUniformComponents = */ 1024,
-		/* .MaxGeometryVaryingComponents = */ 64,
-		/* .MaxTessControlInputComponents = */ 128,
-		/* .MaxTessControlOutputComponents = */ 128,
-		/* .MaxTessControlTextureImageUnits = */ 16,
-		/* .MaxTessControlUniformComponents = */ 1024,
-		/* .MaxTessControlTotalOutputComponents = */ 4096,
-		/* .MaxTessEvaluationInputComponents = */ 128,
-		/* .MaxTessEvaluationOutputComponents = */ 128,
-		/* .MaxTessEvaluationTextureImageUnits = */ 16,
-		/* .MaxTessEvaluationUniformComponents = */ 1024,
-		/* .MaxTessPatchComponents = */ 120,
-		/* .MaxPatchVertices = */ 32,
-		/* .MaxTessGenLevel = */ 64,
-		/* .MaxViewports = */ 16,
-		/* .MaxVertexAtomicCounters = */ 0,
-		/* .MaxTessControlAtomicCounters = */ 0,
-		/* .MaxTessEvaluationAtomicCounters = */ 0,
-		/* .MaxGeometryAtomicCounters = */ 0,
-		/* .MaxFragmentAtomicCounters = */ 8,
-		/* .MaxCombinedAtomicCounters = */ 8,
-		/* .MaxAtomicCounterBindings = */ 1,
-		/* .MaxVertexAtomicCounterBuffers = */ 0,
-		/* .MaxTessControlAtomicCounterBuffers = */ 0,
-		/* .MaxTessEvaluationAtomicCounterBuffers = */ 0,
-		/* .MaxGeometryAtomicCounterBuffers = */ 0,
-		/* .MaxFragmentAtomicCounterBuffers = */ 1,
-		/* .MaxCombinedAtomicCounterBuffers = */ 1,
-		/* .MaxAtomicCounterBufferSize = */ 16384,
-		/* .MaxTransformFeedbackBuffers = */ 4,
-		/* .MaxTransformFeedbackInterleavedComponents = */ 64,
-		/* .MaxCullDistances = */ 8,
-		/* .MaxCombinedClipAndCullDistances = */ 8,
-		/* .MaxSamples = */ 4,
-		/* .maxMeshOutputVerticesNV = */ 256,
-		/* .maxMeshOutputPrimitivesNV = */ 512,
-		/* .maxMeshWorkGroupSizeX_NV = */ 32,
-		/* .maxMeshWorkGroupSizeY_NV = */ 1,
-		/* .maxMeshWorkGroupSizeZ_NV = */ 1,
-		/* .maxTaskWorkGroupSizeX_NV = */ 32,
-		/* .maxTaskWorkGroupSizeY_NV = */ 1,
-		/* .maxTaskWorkGroupSizeZ_NV = */ 1,
-		/* .maxMeshViewCountNV = */ 4,
-		/* .maxMeshOutputVerticesEXT = */ 256,
-		/* .maxMeshOutputPrimitivesEXT = */ 256,
-		/* .maxMeshWorkGroupSizeX_EXT = */ 128,
-		/* .maxMeshWorkGroupSizeY_EXT = */ 128,
-		/* .maxMeshWorkGroupSizeZ_EXT = */ 128,
-		/* .maxTaskWorkGroupSizeX_EXT = */ 128,
-		/* .maxTaskWorkGroupSizeY_EXT = */ 128,
-		/* .maxTaskWorkGroupSizeZ_EXT = */ 128,
-		/* .maxMeshViewCountEXT = */ 4,
-		/* .maxDualSourceDrawBuffersEXT = */ 1,
-
-		/* .limits = */ {
-			/* .nonInductiveForLoops = */ 1,
-			/* .whileLoops = */ 1,
-			/* .doWhileLoops = */ 1,
-			/* .generalUniformIndexing = */ 1,
-			/* .generalAttributeMatrixVectorIndexing = */ 1,
-			/* .generalVaryingIndexing = */ 1,
-			/* .generalSamplerIndexing = */ 1,
-			/* .generalVariableIndexing = */ 1,
-			/* .generalConstantMatrixVectorIndexing = */ 1,
-		}
-	};
-	return r;
-}
-#endif
-
-// Compiles a shader to a SPIR-V binary. Returns the binary as a vector of 32-bit words.
-std::vector<uint32_t> compileShaderSourceToSpirv(const std::string& shaderSource, const std::string& inputFilename
-#ifdef USE_SHADERC
-	, shaderc_shader_kind shaderKind
-#endif
-#ifdef USE_GLSLANG
-	, glslang_stage_t shaderStage
-#endif
-)
-{
-#ifdef USE_SHADERC
-	// This code is borrowed from the shaderc example: https://github.com/google/shaderc/blob/main/examples/online-compile/main.cc
-	shaderc::Compiler compiler;
-	shaderc::CompileOptions options;
-
-	shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(shaderSource, shaderKind, inputFilename.c_str(), options);
-
-	if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
-		std::cout << "\nERROR:   Failed to compile shader[" << inputFilename << " of kind[" << to_string(shaderKind) << "]\n"
-			      << "\n         Reason(s)[\n" << module.GetErrorMessage() << "\n         ]" << std::endl;
-
-		throw std::runtime_error("Failed to compile shader " + inputFilename);
-	}
-
-	return { module.cbegin(), module.cend() };
-#else
-	std::vector<uint32_t> resultingSpirv;
-#ifdef USE_GLSLANG
-	const char* shaderCode = shaderSource.c_str();
-
-	static const auto defaultResources = get_default_resource();
-
-	glslang_input_t input = {};
-	input.language = GLSLANG_SOURCE_GLSL;
-	input.stage = shaderStage;
-	input.client = GLSLANG_CLIENT_VULKAN;
-	// Looks like Vulkan 1.1 is fine even though we're linking against a Vulkan 1.2 SDK:
-	input.client_version = GLSLANG_TARGET_VULKAN_1_1;
-	input.target_language = GLSLANG_TARGET_SPV;
-	// SPIR-V 1.5 has been released on September 13th, 2019 to accompany the launch of Vulkan 1.2
-	// However, Vulkan 1.1 requires Spir-V 1.3, go with 1.3 to match the Vulkan 1.1 target above:
-	input.target_language_version = GLSLANG_TARGET_SPV_1_3; 
-	input.code = shaderCode;
-	input.default_version = 100;
-	input.default_profile = GLSLANG_NO_PROFILE;
-	input.force_default_version_and_profile = false;
-	input.forward_compatible = false;
-	input.messages = GLSLANG_MSG_DEFAULT_BIT;
-	input.resource = &defaultResources;
-	
-	glslang_shader_t* shader = glslang_shader_create(&input);
-
-	if (!glslang_shader_preprocess(shader, &input))
-	{
-		std::cout << "\nERROR:   Failed to preprocess shader[" << inputFilename << "] of kind[" << to_string(shaderStage) << "]"
-			      << "\n         Log[" << glslang_shader_get_info_log(shader) << "]"
-			      << "\n         Debug-Log[" << glslang_shader_get_info_debug_log(shader) << "]" << std::endl;
-		return resultingSpirv;
-	}
-
-	if (!glslang_shader_parse(shader, &input))
-	{
-		std::cout << "\nERROR:   Failed to parse shader[" << inputFilename << "] of kind[" << to_string(shaderStage) << "]"
-			      << "\n         Log[" << glslang_shader_get_info_log(shader) << "]"
-			      << "\n         Debug-Log[" << glslang_shader_get_info_debug_log(shader) << "]" << std::endl;
-		return resultingSpirv;
-	}
-
-	glslang_program_t* program = glslang_program_create();
-	glslang_program_add_shader(program, shader);
-
-	if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
-	{
-		std::cout << "\nERROR:   Failed to link shader[" << inputFilename << "] of kind[" << to_string(shaderStage) << "]"
-			      << "\n         Log[" << glslang_shader_get_info_log(shader) << "]"
-			      << "\n         Debug-Log[" << glslang_shader_get_info_debug_log(shader) << "]" << std::endl;
-		return resultingSpirv;
-	}
-
-	glslang_program_SPIRV_generate(program, input.stage);
-
-	if (glslang_program_SPIRV_get_messages(program))
-	{
-		printf("%s", glslang_program_SPIRV_get_messages(program));
-		std::cout << "\nINFO:    Got messages for shader[" << inputFilename << " of kind[" << to_string(shaderStage) << "]"
-			      << "\n         Message[" << glslang_program_SPIRV_get_messages(program) << "]" << std::endl;
-	}
-
-	auto* spirvDataPtr = glslang_program_SPIRV_get_ptr(program);
-	const auto spirvNumWords = glslang_program_SPIRV_get_size(program);
-	resultingSpirv.insert(std::end(resultingSpirv), spirvDataPtr, spirvDataPtr + spirvNumWords);
-
-	glslang_program_delete(program);
-	glslang_shader_delete(shader);
-	
-#endif
-	return resultingSpirv;
-#endif
-}
-
 // Creates a shader module from the given Spir-V code, returns the created shader module and its create info.
 std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(const uint32_t* spirv, size_t byteSize, const vk::ShaderStageFlagBits shaderStage, const char* entryPoint = "main")
 {
@@ -486,80 +196,10 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromSp
 	return std::make_tuple(shaderModule, shaderStageCreateInfo);
 }
 
-std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(const std::string& shaderCode, const std::string& shaderName, const vk::ShaderStageFlagBits shaderStage)
+std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(const std::pair<std::string, std::string>& shaderCodeAndEntryPoint, const std::string& shaderName, const vk::ShaderStageFlagBits shaderStage)
 {
-#ifdef USE_SHADERC
-	shaderc_shader_kind shadercKind;
-	switch (shaderStage) {
-	case vk::ShaderStageFlagBits::eVertex: shadercKind = shaderc_shader_kind::shaderc_vertex_shader; break;
-	case vk::ShaderStageFlagBits::eTessellationControl: shadercKind = shaderc_shader_kind::shaderc_tess_control_shader; break;
-	case vk::ShaderStageFlagBits::eTessellationEvaluation: shadercKind = shaderc_shader_kind::shaderc_tess_evaluation_shader; break;
-	case vk::ShaderStageFlagBits::eGeometry: shadercKind = shaderc_shader_kind::shaderc_geometry_shader; break;
-	case vk::ShaderStageFlagBits::eFragment: shadercKind = shaderc_shader_kind::shaderc_fragment_shader; break;
-	case vk::ShaderStageFlagBits::eCompute: shadercKind = shaderc_shader_kind::shaderc_compute_shader; break;
-	case vk::ShaderStageFlagBits::eRaygenKHR: shadercKind = shaderc_shader_kind::shaderc_raygen_shader; break;
-	case vk::ShaderStageFlagBits::eAnyHitKHR: shadercKind = shaderc_shader_kind::shaderc_anyhit_shader; break;
-	case vk::ShaderStageFlagBits::eClosestHitKHR: shadercKind = shaderc_shader_kind::shaderc_closesthit_shader; break;
-	case vk::ShaderStageFlagBits::eMissKHR: shadercKind = shaderc_shader_kind::shaderc_miss_shader; break;
-	case vk::ShaderStageFlagBits::eIntersectionKHR: shadercKind = shaderc_shader_kind::shaderc_intersection_shader; break;
-	case vk::ShaderStageFlagBits::eCallableKHR: shadercKind = shaderc_shader_kind::shaderc_callable_shader; break;
-	case vk::ShaderStageFlagBits::eTaskNV: shadercKind = shaderc_shader_kind::shaderc_task_shader; break;
-	case vk::ShaderStageFlagBits::eMeshNV: shadercKind = shaderc_shader_kind::shaderc_mesh_shader; break;
-	}
-	auto spirv = compileShaderSourceToSpirv(shaderCode, shaderName, shadercKind);
-#endif
-#ifdef USE_GLSLANG
-	glslang_stage_t glslangStage;
-	switch (shaderStage) {
-	case vk::ShaderStageFlagBits::eVertex: glslangStage = GLSLANG_STAGE_VERTEX; break;
-	case vk::ShaderStageFlagBits::eTessellationControl: glslangStage = GLSLANG_STAGE_TESSCONTROL; break;
-	case vk::ShaderStageFlagBits::eTessellationEvaluation: glslangStage = GLSLANG_STAGE_TESSEVALUATION; break;
-	case vk::ShaderStageFlagBits::eGeometry: glslangStage = GLSLANG_STAGE_GEOMETRY; break;
-	case vk::ShaderStageFlagBits::eFragment: glslangStage = GLSLANG_STAGE_FRAGMENT; break;
-	case vk::ShaderStageFlagBits::eCompute: glslangStage = GLSLANG_STAGE_COMPUTE; break;
-	case vk::ShaderStageFlagBits::eRaygenKHR: glslangStage = GLSLANG_STAGE_RAYGEN; break;
-	case vk::ShaderStageFlagBits::eAnyHitKHR: glslangStage = GLSLANG_STAGE_ANYHIT; break;
-	case vk::ShaderStageFlagBits::eClosestHitKHR: glslangStage = GLSLANG_STAGE_CLOSESTHIT; break;
-	case vk::ShaderStageFlagBits::eMissKHR: glslangStage = GLSLANG_STAGE_MISS; break;
-	case vk::ShaderStageFlagBits::eIntersectionKHR: glslangStage = GLSLANG_STAGE_INTERSECT; break;
-	case vk::ShaderStageFlagBits::eCallableKHR: glslangStage = GLSLANG_STAGE_CALLABLE; break;
-	case vk::ShaderStageFlagBits::eTaskNV: glslangStage = GLSLANG_STAGE_TASK; break;
-	case vk::ShaderStageFlagBits::eMeshNV: glslangStage = GLSLANG_STAGE_MESH; break;
-	}
-	auto spirv = compileShaderSourceToSpirv(shaderCode, shaderName, glslangStage);
-#endif
-	if (spirv.empty()) {
-		return std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{});
-	}
-	//                                                        | SPIR-V Code | Size must be specified in BYTE => * sizeof WORD   | Stage      |
-	return loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(spirv.data(), spirv.size() * sizeof(decltype(spirv)::value_type), shaderStage);
-}
+    std::string_view shaderType = shaderStage == vk::ShaderStageFlagBits::eFragment ? "fragment" : "vertex";
 
-std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromFileAndCreateShaderModuleAndStageInfo(const std::string& shader_filename, const vk::ShaderStageFlagBits shaderStage)
-{
-    std::string path = {};
-
-	std::ifstream infile(shader_filename);
-	if (infile.good()) {
-		path = shader_filename;
-		VKL_LOG("Loading shader file from path[" << path << "]...");
-	}
-
-	if (path.empty()) { // Fail if shader file could not be found:
-		VKL_EXIT_WITH_ERROR("Unable to load file[" << shader_filename << "].");
-	}
-
-	std::ifstream ifs(path);
-	std::string content(
-		(std::istreambuf_iterator<char>(ifs)),
-		(std::istreambuf_iterator<char>())
-	);
-
-	return loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(content, path, shaderStage);
-}
-
-std::pair<std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>, std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>> loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(const std::string& shaderCode, const std::string& shaderName)
-{
     Slang::ComPtr<slang::IGlobalSession> slangGlobalSession;
     auto globalSlangSessionResult = slang::createGlobalSession(slangGlobalSession.writeRef());
     if (SLANG_FAILED(globalSlangSessionResult)) {
@@ -581,9 +221,15 @@ std::pair<std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>, std::
     compilerOptionOptimization.value.kind = slang::CompilerOptionValueKind::Int;
     compilerOptionOptimization.value.intValue0 = 1;
 
-    std::array<slang::CompilerOptionEntry, 2> compilerOptions = {
+    slang::CompilerOptionEntry compilerOptionMatrixLayout;
+    compilerOptionMatrixLayout.name = slang::CompilerOptionName::MatrixLayoutColumn;
+    compilerOptionMatrixLayout.value.kind = slang::CompilerOptionValueKind::Int;
+    compilerOptionMatrixLayout.value.intValue0 = 1;
+
+    std::array<slang::CompilerOptionEntry, 3> compilerOptions = {
         compilerOptionEntryPointName,
-        compilerOptionOptimization
+        compilerOptionOptimization,
+        compilerOptionMatrixLayout
     };
 
     sessionDesc.targets = &targetDesc;
@@ -597,173 +243,98 @@ std::pair<std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>, std::
         VKL_EXIT_WITH_ERROR("Failed to create Slang session.");
     }
 
-    slang::IModule* slangModule;
+    Slang::ComPtr<slang::IModule> slangModule;
     {
         Slang::ComPtr<slang::IBlob> diagnosticsBlob;
         slangModule = session->loadModuleFromSourceString(
             shaderName.c_str(),
             nullptr,
-            shaderCode.c_str(),
+            shaderCodeAndEntryPoint.first.c_str(),
             diagnosticsBlob.writeRef()
         );
         if (diagnosticsBlob != nullptr) {
             std::cout << "\nERROR:   Failed to load shader[" << shaderName << "]"
                       << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
-            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+            return std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{});
         }
     }
 
-    Slang::ComPtr<slang::IEntryPoint> vertexEntryPoint;
-    Slang::ComPtr<slang::IEntryPoint> fragmentEntryPoint;
-
-    slangModule->findEntryPointByName("vertexMain", vertexEntryPoint.writeRef());
-    if (!vertexEntryPoint) {
+    Slang::ComPtr<slang::IEntryPoint> entryPoint;
+    slangModule->findEntryPointByName(shaderCodeAndEntryPoint.second.c_str(), entryPoint.writeRef());
+    if (!entryPoint) {
         std::cout << "\nERROR:   Failed to load shader[" << shaderName << "]"
-                  << "\n         Error getting entry point \"vertexMain\""
-                  << "\n         Make sure to provide a function  \"vertexMain\" annotated with [shader(\"vertex\")]" << std::endl;
-        return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+                  << "\n         Error getting entry point \"" << shaderCodeAndEntryPoint.second << "\""
+                  << "\n         Make sure to provide a function  \"" << shaderCodeAndEntryPoint.second << "\" annotated with [shader(\"" << shaderType << "\")]" << std::endl;
+        return std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{});
     }
 
-    slangModule->findEntryPointByName("fragmentMain", fragmentEntryPoint.writeRef());
-    if (!fragmentEntryPoint) {
-        std::cout << "\nERROR:   Failed to load shader[" << shaderName << "]"
-                  << "\n         Error getting entry point \"fragmentMain\""
-                  << "\n         Make sure to provide a function  \"fragmentMain\" annotated with [shader(\"fragment\")]" << std::endl;
-        return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
-    }
+    std::array<slang::IComponentType*, 2> componentTypes = { slangModule, entryPoint };
 
-    std::array<slang::IComponentType*, 2> componentTypesVertex = { slangModule, vertexEntryPoint };
-    std::array<slang::IComponentType*, 2> componentTypesFragment = { slangModule, fragmentEntryPoint };
-
-    Slang::ComPtr<slang::IComponentType> vertexProgram;
+    Slang::ComPtr<slang::IComponentType> program;
     {
         Slang::ComPtr<slang::IBlob> diagnosticsBlob;
         SlangResult result = session->createCompositeComponentType(
-            componentTypesVertex.data(),
-            componentTypesVertex.size(),
-            vertexProgram.writeRef(),
+            componentTypes.data(),
+            componentTypes.size(),
+            program.writeRef(),
             diagnosticsBlob.writeRef()
         );
 
         if (diagnosticsBlob != nullptr) {
-            std::cout << "\nERROR:   Failed to compose shader[" << shaderName << "] for vertex stage"
+            std::cout << "\nERROR:   Failed to compose shader[" << shaderName << "] for \"" << shaderType << "\" stage"
                       << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
         }
         if (SLANG_FAILED(result)) {
-            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+            return std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{});
         }
     }
 
-    Slang::ComPtr<slang::IComponentType> fragmentProgram;
+    Slang::ComPtr<slang::IComponentType> linkedProgram;
     {
         Slang::ComPtr<slang::IBlob> diagnosticsBlob;
-        SlangResult result = session->createCompositeComponentType(
-            componentTypesFragment.data(),
-            componentTypesFragment.size(),
-            fragmentProgram.writeRef(),
+        SlangResult result = program->link(
+            linkedProgram.writeRef(),
             diagnosticsBlob.writeRef()
         );
 
         if (diagnosticsBlob != nullptr) {
-            std::cout << "\nERROR:   Failed to compose shader[" << shaderName << "] for fragment stage"
+            std::cout << "\nERROR:   Failed to link shader[" << shaderName << "] for \"" << shaderType << "\" stage"
                       << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
         }
         if (SLANG_FAILED(result)) {
-            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+            return std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{});
         }
     }
 
-    Slang::ComPtr<slang::IComponentType> linkedVertexProgram;
+    Slang::ComPtr<slang::IBlob> spirvCode;
     {
         Slang::ComPtr<slang::IBlob> diagnosticsBlob;
-        SlangResult result = vertexProgram->link(
-            linkedVertexProgram.writeRef(),
-            diagnosticsBlob.writeRef()
-        );
-
-        if (diagnosticsBlob != nullptr) {
-            std::cout << "\nERROR:   Failed to link shader[" << shaderName << "] for vertex stage"
-                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
-        }
-        if (SLANG_FAILED(result)) {
-            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
-        }
-    }
-
-    Slang::ComPtr<slang::IComponentType> linkedFragmentProgram;
-    {
-        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
-        SlangResult result = fragmentProgram->link(
-            linkedFragmentProgram.writeRef(),
-            diagnosticsBlob.writeRef()
-        );
-
-        if (diagnosticsBlob != nullptr) {
-            std::cout << "\nERROR:   Failed to link shader[" << shaderName << "] for fragment stage"
-                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
-        }
-        if (SLANG_FAILED(result)) {
-            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
-        }
-    }
-
-    Slang::ComPtr<slang::IBlob> spirvVertexCode;
-    {
-        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
-        SlangResult result = linkedVertexProgram->getEntryPointCode(
+        SlangResult result = linkedProgram->getEntryPointCode(
             0,
             0,
-            spirvVertexCode.writeRef(),
+            spirvCode.writeRef(),
             diagnosticsBlob.writeRef()
         );
 
         if (diagnosticsBlob != nullptr) {
-            std::cout << "\nERROR:   Failed to get entry point code in shader[" << shaderName << "] for vertex stage"
+            std::cout << "\nERROR:   Failed to get entry point code in shader[" << shaderName << "] for \"" << shaderType << "\" stage"
                       << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
         }
         if (SLANG_FAILED(result)) {
-            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
+            return std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{});
         }
     }
 
-    Slang::ComPtr<slang::IBlob> spirvFragmentCode;
-    {
-        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
-        SlangResult result = linkedFragmentProgram->getEntryPointCode(
-            0,
-            0,
-            spirvFragmentCode.writeRef(),
-            diagnosticsBlob.writeRef()
-        );
 
-        if (diagnosticsBlob != nullptr) {
-            std::cout << "\nERROR:   Failed to get entry point code in shader[" << shaderName << "] for fragment stage"
-                      << "\n        " << (const char*)diagnosticsBlob->getBufferPointer() << std::endl;
-        }
-        if (SLANG_FAILED(result)) {
-            return {std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{}), std::make_tuple(vk::ShaderModule{ VK_NULL_HANDLE }, vk::PipelineShaderStageCreateInfo{})};
-        }
-    }
-
-    auto vertexTpl = loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(
-        static_cast<const uint32_t*>(spirvVertexCode->getBufferPointer()),
-        spirvVertexCode->getBufferSize(),
-        vk::ShaderStageFlagBits::eVertex,
-        "vertexMain"
+    return loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(
+        static_cast<const uint32_t*>(spirvCode->getBufferPointer()),
+        spirvCode->getBufferSize(),
+        shaderStage,
+        shaderCodeAndEntryPoint.second.c_str()
     );
-
-    auto fragmentTpl = loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(
-        static_cast<const uint32_t*>(spirvFragmentCode->getBufferPointer()),
-        spirvFragmentCode->getBufferSize(),
-        vk::ShaderStageFlagBits::eFragment,
-        "fragmentMain"
-    );
-
-
-    return {vertexTpl, fragmentTpl};
 }
 
-std::pair<std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>, std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>> loadSlangShaderFromFileAndCreateShaderModulesAndStageInfos(const std::string& shader_filename)
+std::string loadSlangShaderCodeFromFile(const std::string& shader_filename)
 {
     std::string path = {};
 
@@ -783,7 +354,7 @@ std::pair<std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo>, std::
         (std::istreambuf_iterator<char>())
     );
 
-    return loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(content, path);
+    return content;
 }
 
 VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
@@ -792,44 +363,37 @@ VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& confi
         VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
     }
 
+    if (!config.vertexShaderPathAndEntrypoint.first || !config.vertexShaderPathAndEntrypoint.second || !config.fragmentShaderPathAndEntrypoint.first || !config.fragmentShaderPathAndEntrypoint.second) {
+        std::cout << "\nERROR:   Unable to create graphics pipeline, no valid shader paths and entrypoints provided."
+                  << "\n         vertexShaderPathAndEntrypoint and fragmentShaderPathAndEntrypoint must contain path and entrypoint." << std::endl;
+        return VK_NULL_HANDLE;
+    }
+
+    auto vertexShaderPathAndEntryPoint = std::make_pair(std::string(config.vertexShaderPathAndEntrypoint.first), std::string(config.vertexShaderPathAndEntrypoint.second));
+    auto fragmentShaderPathAndEntryPoint = std::make_pair(std::string(config.fragmentShaderPathAndEntrypoint.first), std::string(config.fragmentShaderPathAndEntrypoint.second));
+
     std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> vertTpl;
     std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> fragTpl;
 
-    if (config.shaderPath != nullptr) {
-        std::tie(vertTpl, fragTpl) = loadShadersFromMemoryInstead
-            ? loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(config.shaderPath, "slang shader from memory")
-            : loadSlangShaderFromFileAndCreateShaderModulesAndStageInfos(config.shaderPath);
-
-        if (!std::get<vk::ShaderModule>(vertTpl) || !std::get<vk::ShaderModule>(fragTpl)) {
-            if (std::get<vk::ShaderModule>(vertTpl)) {
-                mDevice.destroyShaderModule(std::get<vk::ShaderModule>(vertTpl));
-            }
-            if (std::get<vk::ShaderModule>(fragTpl)) {
-                mDevice.destroyShaderModule(std::get<vk::ShaderModule>(fragTpl));
-            }
-
-            return VK_NULL_HANDLE;
-        }
-
+    if (loadShadersFromMemoryInstead) {
+        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(vertexShaderPathAndEntryPoint, "vertex_shader_from_memory", vk::ShaderStageFlagBits::eVertex);
+        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(fragmentShaderPathAndEntryPoint, "vertex_shader_from_memory", vk::ShaderStageFlagBits::eFragment);
     } else {
-        // Create the graphics pipeline, describe every state of it
-        // Get tuples of <vk::ShaderModule, vk::PipelineShaderStageCreateInfo>
-        vertTpl = loadShadersFromMemoryInstead
-            ? loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(config.vertexShaderPath, "vertex shader from memory", vk::ShaderStageFlagBits::eVertex)
-            : loadShaderFromFileAndCreateShaderModuleAndStageInfo(config.vertexShaderPath, vk::ShaderStageFlagBits::eVertex);
+        std::string vertexShaderCode = loadSlangShaderCodeFromFile(vertexShaderPathAndEntryPoint.first);
+        std::string fragmentShaderCode = loadSlangShaderCodeFromFile(fragmentShaderPathAndEntryPoint.first);
+        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({vertexShaderCode, vertexShaderPathAndEntryPoint.second}, vertexShaderPathAndEntryPoint.first, vk::ShaderStageFlagBits::eVertex);
+        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({fragmentShaderCode, fragmentShaderPathAndEntryPoint.second}, fragmentShaderPathAndEntryPoint.first, vk::ShaderStageFlagBits::eFragment);
+    }
 
-        if (!std::get<vk::ShaderModule>(vertTpl)) {
-            return VK_NULL_HANDLE;
-        }
-
-        fragTpl = loadShadersFromMemoryInstead
-            ? loadShaderFromMemoryAndCreateShaderModuleAndStageInfo(config.fragmentShaderPath, "fragment shader from memory", vk::ShaderStageFlagBits::eFragment)
-            : loadShaderFromFileAndCreateShaderModuleAndStageInfo(config.fragmentShaderPath, vk::ShaderStageFlagBits::eFragment);
-
-        if (!std::get<vk::ShaderModule>(fragTpl)) {
+    if (!std::get<vk::ShaderModule>(vertTpl) || !std::get<vk::ShaderModule>(fragTpl)) {
+        if (std::get<vk::ShaderModule>(vertTpl)) {
             mDevice.destroyShaderModule(std::get<vk::ShaderModule>(vertTpl));
-            return VK_NULL_HANDLE;
         }
+        if (std::get<vk::ShaderModule>(fragTpl)) {
+            mDevice.destroyShaderModule(std::get<vk::ShaderModule>(fragTpl));
+        }
+
+        return VK_NULL_HANDLE;
     }
 
 	// Describe the shaders used:
@@ -934,7 +498,7 @@ VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bo
         VKL_EXIT_WITH_ERROR("Failed to create graphics pipeline. Check console output if there were any problems with shader compilation!");
 	}
 	// Store for hot reloading, but only those handles, which the user requested explicitly (hence the split of createGraphicsPipelineInternal and vklCreateGraphicsPipeline):
-	mUserKnownPipelines[graphicsPipelineHandle] = std::make_tuple(config, std::string(config.vertexShaderPath), std::string(config.fragmentShaderPath), loadShadersFromMemoryInstead);
+	mUserKnownPipelines[graphicsPipelineHandle] = std::make_tuple(config, std::make_pair(std::string(config.vertexShaderPathAndEntrypoint.first), std::string(config.vertexShaderPathAndEntrypoint.second)), std::make_pair(std::string(config.fragmentShaderPathAndEntrypoint.first), std::string(config.fragmentShaderPathAndEntrypoint.second)), loadShadersFromMemoryInstead);
 	return graphicsPipelineHandle;
 }
 
@@ -1571,38 +1135,38 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	mFrameId = -1;
 	// We have to make sure that not more than #CONCURRENT_FRAMES are in flight at the same time. We can use fences to ensure that. 
 	mFrameInFlightIndex = -1; // Initialize
-	
-#ifdef USE_GLSLANG
-	glslang_initialize_process();
-#endif
+
 	mBasicPipeline = vk::Pipeline{ createGraphicsPipelineInternal(VklGraphicsPipelineConfig{
-		nullptr,
-        nullptr,
-        "struct VSInput {\n"
-        "   float3 position : POSITION;\n"
-        "};\n"
-        "\n"
-        "struct VSOutput {\n"
-        "   float4 position : SV_Position;\n"
-        "};\n"
-        "\n"
-        "struct FSOutput {\n"
-        "   float4 color : SV_Target;\n"
-        "};\n"
-        "\n"
-        "[shader(\"vertex\")]\n"
-        "VSOutput vertexMain(VSInput input) {\n"
-        "   VSOutput output;\n"
-        "   output.position = float4(input.position.x, -input.position.y, input.position.z, 1.0);\n"
-        "   return output;\n"
-        "}\n"
-        "\n"
-        "[shader(\"fragment\")]\n"
-        "FSOutput fragmentMain() {\n"
-        "   FSOutput output;\n"
-        "   output.color = float4(1.0, 0.0, 0.0, 1.0);\n"
-        "   return output;\n"
-        "}\n",
+        std::make_pair(
+            "struct VSInput {\n"
+            "   float3 position : POSITION;\n"
+            "};\n"
+            "\n"
+            "struct VSOutput {\n"
+            "   float4 position : SV_Position;\n"
+            "};\n"
+            "\n"
+            "[shader(\"vertex\")]\n"
+            "VSOutput vertexMain(VSInput input) {\n"
+            "   VSOutput output;\n"
+            "   output.position = float4(input.position.x, -input.position.y, input.position.z, 1.0);\n"
+            "   return output;\n"
+            "}\n",
+            "vertexMain"
+        ),
+        std::make_pair(
+            "struct FSOutput {\n"
+            "   float4 color : SV_Target;\n"
+            "};\n"
+            "\n"
+            "[shader(\"fragment\")]\n"
+            "FSOutput fragmentMain() {\n"
+            "   FSOutput output;\n"
+            "   output.color = float4(1.0, 0.0, 0.0, 1.0);\n"
+            "   return output;\n"
+            "}\n",
+            "fragmentMain"
+        ),
 		// Further config parameters:
 		{
 			VkVertexInputBindingDescription { 0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX }
@@ -1655,9 +1219,6 @@ void vklDestroyFramework()
 
 	mCommandPool.reset();
 	mDevice.destroyPipeline(mBasicPipeline);
-#ifdef USE_GLSLANG
-	glslang_finalize_process();
-#endif
 	mImagesInFlightFenceIndices.clear();
 	for (size_t i = 0; i < CONCURRENT_FRAMES; ++i) {
 		mSyncHostWithDeviceFence[i].reset();
@@ -2374,8 +1935,10 @@ void vklHotReloadPipelines()
 	VKL_LOG("About to hot-reload " << mUserKnownPipelines.size() << " known graphics pipelines...");
 	for(auto it = mUserKnownPipelines.begin(); it != mUserKnownPipelines.end(); it++) {
 		auto originalHandle = it->first;
-		std::get<0>(it->second).vertexShaderPath   = std::get<1>(it->second).c_str();
-		std::get<0>(it->second).fragmentShaderPath = std::get<2>(it->second).c_str();
+		std::get<0>(it->second).vertexShaderPathAndEntrypoint.first         = std::get<1>(it->second).first.c_str();
+		std::get<0>(it->second).vertexShaderPathAndEntrypoint.second        = std::get<1>(it->second).second.c_str();
+		std::get<0>(it->second).fragmentShaderPathAndEntrypoint.first      = std::get<2>(it->second).first.c_str();
+		std::get<0>(it->second).fragmentShaderPathAndEntrypoint.second      = std::get<2>(it->second).second.c_str();
 		auto newHandle = createGraphicsPipelineInternal(std::get<0>(it->second), std::get<3>(it->second));
 		if (VK_NULL_HANDLE == newHandle) {
 			continue;

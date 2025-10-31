@@ -111,23 +111,29 @@ struct VklSwapchainConfig {
  *	A struct containing config parameters for the creation of a graphics pipeline
  */
 struct VklGraphicsPipelineConfig {
-    /*! The path to the vertex shader, which can be provided relative to the "assets/shader/" directory.
+    /*!
+     *  Vertex shader path and entrypoint name.
+     *  First value in the std::pair is the path to the fragment shader, second value is the entrypoint name.
+     *
+     *  The path to the vertex shader, which can be provided relative to the "assets/shader/" directory.
      *	That means that it will be tried to first load from the given value prepended with "assets/shader/".
      *	Only if that fails, it will be tried to load from the given value directly.
+     *
+     *	The entrypoint name is the name of the function in the shader code that will be used for this shader.
      */
-    const char *vertexShaderPath = nullptr;
+    std::pair<const char *, const char *> vertexShaderPathAndEntrypoint = {nullptr, nullptr};
 
-    /*! The path to the fragment shader, which can be provided relative to the "assets/shader/" directory.
+    /*!
+     *  Fragment shader path and entrypoint name.
+     *  First value in the std::pair is the path to the fragment shader, second value is the entrypoint name.
+     *
+     *  The path to the fragment shader, which can be provided relative to the "assets/shader/" directory.
      *	That means that it will be tried to first load from the given value prepended with "assets/shader/".
      *	Only if that fails, it will be tried to load from the given value directly.
+     *
+     *	The entrypoint name is the name of the function in the shader code that will be used for this shader.
      */
-    const char *fragmentShaderPath = nullptr;
-
-    /*! The path to a Slang shader, that contains both vertex and fragment shader code. The path can be provided relative to the "assets/shader/" directory.
-     * That means that it will be tried to first load from the given value prepended with "assets/shader/".
-     * Only if that fails, it will be tried to load from the given value directly.
-     */
-    const char *shaderPath = nullptr;
+    std::pair<const char *, const char *> fragmentShaderPathAndEntrypoint = {nullptr, nullptr};
 
     /*!
      *	One description per buffer that is when rendering with a graphics pipeline.
