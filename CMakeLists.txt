@@ -58,12 +58,6 @@ endif()
 #================================#
 
 find_package(Vulkan REQUIRED)
-set(ENABLE_HLSL OFF)
-set(ENABLE_CTEST OFF)
-set(ENABLE_PCH OFF)
-set(ENABLE_OPT OFF)
-set(ENABLE_SPVREMAPPER OFF)
-set(BUILD_EXTERNAL OFF)
 set(GLFW_BUILD_EXAMPLES OFF)
 set(GLFW_BUILD_TESTS OFF)
 set(GLFW_BUILD_DOCS OFF)
@@ -118,11 +112,7 @@ add_dependencies(${PROJECT_NAME} glfw slang::slang)
 # Unset not needed cache variables #
 #==================================#
 
-unset(ENABLE_EXCEPTIONS CACHE)
-unset(ENABLE_HLSL CACHE)
 unset(ENABLE_OPT CACHE)
-unset(ENABLE_RTTI CACHE)
-unset(ENABLE_SPVREMAPPER CACHE)
 
 unset(GLFW_USE_HYBRID_HPG CACHE)
 unset(GLFW_VULKAN_STATIC CACHE)
