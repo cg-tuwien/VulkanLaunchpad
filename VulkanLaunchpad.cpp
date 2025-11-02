@@ -219,7 +219,7 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderF
     slang::CompilerOptionEntry compilerOptionOptimization;
     compilerOptionOptimization.name = slang::CompilerOptionName::Optimization;
     compilerOptionOptimization.value.kind = slang::CompilerOptionValueKind::Int;
-    compilerOptionOptimization.value.intValue0 = 1;
+    compilerOptionOptimization.value.intValue0 = 3;
 
     slang::CompilerOptionEntry compilerOptionMatrixLayout;
     compilerOptionMatrixLayout.name = slang::CompilerOptionName::MatrixLayoutColumn;
@@ -377,7 +377,7 @@ VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& confi
 
     if (loadShadersFromMemoryInstead) {
         vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(vertexShaderPathAndEntryPoint, "vertex_shader_from_memory", vk::ShaderStageFlagBits::eVertex);
-        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(fragmentShaderPathAndEntryPoint, "vertex_shader_from_memory", vk::ShaderStageFlagBits::eFragment);
+        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(fragmentShaderPathAndEntryPoint, "fragment_shader_from_memory", vk::ShaderStageFlagBits::eFragment);
     } else {
         std::string vertexShaderCode = loadSlangShaderCodeFromFile(vertexShaderPathAndEntryPoint.first);
         std::string fragmentShaderCode = loadSlangShaderCodeFromFile(fragmentShaderPathAndEntryPoint.first);
