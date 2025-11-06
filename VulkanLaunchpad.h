@@ -10,8 +10,7 @@
 #include <vector>
 #include <sstream>
 
-#define GLFW_INCLUDE_VULKAN
-
+#include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -25,8 +24,6 @@
 #endif
 
 // Returns a string describing the given VkResult value
-extern const char *to_string(VkResult result);
-
 #ifdef _WIN32
 #define VKL_PATH_SEPARATOR '\\'
 #else
@@ -44,29 +41,29 @@ extern const char *to_string(VkResult result);
 #define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR:   " << err << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); std::stringstream ss; ss << err; throw std::runtime_error(ss.str()); } while(false)
 
 // Evaluates a VkResult and displays its status:
-#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < VK_SUCCESS) { std::cout << "ERROR:   Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } else { std::cout << "CHECK:   Vulkan operation returned status code: " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
+#define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < vk::Result::eSuccess) { std::cout << "ERROR:   Vulkan operation was not successful with error code " << vk::to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } else { std::cout << "CHECK:   Vulkan operation returned status code: " << vk::to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
 
 // Evaluates a VkResult and displays its status only if it represents an error:
-#define VKL_CHECK_VULKAN_ERROR(result)  do { if ((result) < VK_SUCCESS) { std::cout << "ERROR:   Vulkan operation was not successful with error code " << to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } } while(false)
+#define VKL_CHECK_VULKAN_ERROR(result)  do { if ((result) < vk::Result::eSuccess) { std::cout << "ERROR:   Vulkan operation was not successful with error code " << vk::to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } } while(false)
 
 // Evaluates a VkResult and issues a return statement if it represents an error:
-#define VKL_RETURN_ON_ERROR(result)     do { if ((result) < VK_SUCCESS) { return; } } while(false)
+#define VKL_RETURN_ON_ERROR(result)     do { if ((result) < vk::Result::eSuccess) { return; } } while(false)
 
 /*!
  *	A struct containing details about one specific image that is used in a swap chain
  */
 struct VklSwapchainImageDetails {
     /*! The image's handle: */
-    VkImage imageHandle = VK_NULL_HANDLE;
+    vk::Image imageHandle = VK_NULL_HANDLE;
 
     /*! The format of the image: */
-    VkFormat imageFormat;
+    vk::Format imageFormat;
 
     /*! The usage of the image: */
-    VkImageUsageFlags imageUsage;
+    vk::ImageUsageFlags imageUsage;
 
     /*! The value that this image shall be cleared to at the beginning of a new frame: */
-    VkClearValue clearValue;
+    vk::ClearValue clearValue;
 };
 /*!
  *	A struct describing the swap chain config in terms of used images.
@@ -98,10 +95,10 @@ struct VklSwapchainFramebufferComposition {
  */
 struct VklSwapchainConfig {
     /*! The handle of the already created swapchain: */
-    VkSwapchainKHR swapchainHandle = VK_NULL_HANDLE;
+    vk::SwapchainKHR swapchainHandle = VK_NULL_HANDLE;
 
     /*! The resolution of each swap chain image (they all must match!): */
-    VkExtent2D imageExtent;
+    vk::Extent2D imageExtent;
 
     /*! Provide one entry per swapchain image composition (can be one or multiple images): */
     std::vector<VklSwapchainFramebufferComposition> swapchainImages;
@@ -147,7 +144,7 @@ struct VklGraphicsPipelineConfig {
      *
      *	Hint: Set the .binding member of each element to steadily increasing numbers, starting with 0.
      */
-    std::vector<VkVertexInputBindingDescription> vertexInputBuffers;
+    std::vector<vk::VertexInputBindingDescription> vertexInputBuffers;
 
     /*!
      *	One description per input attribute as it is specified in vertex shaders.
@@ -159,13 +156,13 @@ struct VklGraphicsPipelineConfig {
      *	input buffer, s.t., the .binding member of VkVertexInputBindingDescription and the
      *	.binding member of VkVertexInputAttributeDescription match!
      */
-    std::vector<VkVertexInputAttributeDescription> inputAttributeDescriptions;
+    std::vector<vk::VertexInputAttributeDescription> inputAttributeDescriptions;
 
     /*! Sets the mode that is used for drawing polygons */
-    VkPolygonMode polygonDrawMode;
+    vk::PolygonMode polygonDrawMode;
 
     /*! Sets which triangles should be culled during rendering */
-    VkCullModeFlags triangleCullingMode;
+    vk::CullModeFlags triangleCullingMode;
 
     /*!
      *	This vector describes the layout of resources that are bound to shaders.
@@ -176,7 +173,7 @@ struct VklGraphicsPipelineConfig {
      *	be created with the following properties: .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
      *	.binding        = 5
      */
-    std::vector<VkDescriptorSetLayoutBinding> descriptorLayout;
+    std::vector<vk::DescriptorSetLayoutBinding> descriptorLayout;
 
     /*! If set to true, the pipeline will be configured to have blending enabled, 
      *  where its blend factors are set as follows: 
@@ -226,8 +223,8 @@ const char **vklGetRequiredInstanceExtensions(uint32_t *out_count);
 /*!
  *  Initializes the framework
  */
-bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysicalDevice vk_physical_device,
-                      VkDevice vk_device, VkQueue vk_queue, const VklSwapchainConfig &swapchain_config);
+bool vklInitFramework(vk::Instance vk_instance, vk::SurfaceKHR vk_surface, vk::PhysicalDevice vk_physical_device,
+                      vk::Device vk_device, vk::Queue vk_queue, const VklSwapchainConfig &swapchain_config);
 
 #ifdef VKL_HAS_VMA
 /*!
@@ -318,7 +315,7 @@ void vklEndRecordingCommands();
  *	@param loadShadersFromMemory If true, then the shader paths of the config struct are interpreted as shader code.
  *	@return On success, a valid VkPipeline handle is returned.
  */
-VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig &config, bool loadShadersFromMemory = false);
+vk::Pipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig &config, bool loadShadersFromMemory = false);
 
 /*!
  *	Destroys a graphics pipeline that has been previously created with vklCreateGraphicsPipeline.
@@ -326,7 +323,7 @@ VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig &config, bo
  *	@param	pipeline	A valid handle to a graphics pipeline that has been created with vklCreateGraphicsPipeline.
  *						The pipeline will be unusable after this function has returned. 
  */
-void vklDestroyGraphicsPipeline(VkPipeline pipeline);
+void vklDestroyGraphicsPipeline(vk::Pipeline pipeline);
 
 /*!
  *  Allocates host-coherent memory that fits the given requirements.
@@ -337,7 +334,7 @@ void vklDestroyGraphicsPipeline(VkPipeline pipeline);
  *                               For, e.g., host-coherent memory, pass VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
  *                               For, e.g., device-local memory, pass VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
  */
-VkDeviceMemory vklAllocateMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags memoryPropertyFlags);
+vk::DeviceMemory vklAllocateMemoryForGivenRequirements(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags memoryPropertyFlags);
 
 /*!
  *	Creates a new buffer (VkBuffer) and also allocates new memory on the device (VkDeviceMemory) to back the
@@ -350,7 +347,7 @@ VkDeviceMemory vklAllocateMemoryForGivenRequirements(VkDeviceSize bufferSize, Vk
  *
  *	@return A handle to a newly created buffer with backing memory.
  */
-VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage);
+vk::Buffer vklCreateHostCoherentBufferWithBackingMemory(vk::DeviceSize buffer_size, vk::BufferUsageFlags buffer_usage);
 
 /*!
  *	Creates a new buffer (VkBuffer) and also allocates new memory on the device (VkDeviceMemory) to back the
@@ -363,7 +360,7 @@ VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, 
  *
  *	@return A handle to a newly created buffer with backing memory.
  */
-VkBuffer vklCreateDeviceLocalBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage);
+vk::Buffer vklCreateDeviceLocalBufferWithBackingMemory(vk::DeviceSize buffer_size, vk::BufferUsageFlags buffer_usage);
 
 /*!
  *	Frees the memory (VkDeviceMemory) and destroys the buffer (VkBuffer) which has previously been created
@@ -371,7 +368,7 @@ VkBuffer vklCreateDeviceLocalBufferWithBackingMemory(VkDeviceSize buffer_size, V
  *	@param	buffer		The buffer which shall be destroyed. The assigned VkDeviceMemory handle is tracked
  *						internally and will be freed before the buffer is destroyed.
  */
-void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer);
+void vklDestroyHostCoherentBufferAndItsBackingMemory(vk::Buffer buffer);
 
 /*!
  *	Frees the memory (VkDeviceMemory) and destroys the buffer (VkBuffer) which has previously been created
@@ -379,7 +376,7 @@ void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer);
  *	@param	buffer		The buffer which shall be destroyed. The assigned VkDeviceMemory handle is tracked
  *						internally and will be freed before the buffer is destroyed.
  */
-void vklDestroyDeviceLocalBufferAndItsBackingMemory(VkBuffer buffer);
+void vklDestroyDeviceLocalBufferAndItsBackingMemory(vk::Buffer buffer);
 
 /*!
  *	Copies data into the buffer, by reading it from the address at data_pointer and of the given byte size.
@@ -388,7 +385,7 @@ void vklDestroyDeviceLocalBufferAndItsBackingMemory(VkBuffer buffer);
  *	@param	data_pointer		Pointer to the beginning of CPU-side data.
  *	@param	data_size_in_bytes	How many bytes shall be copied from the memory address at data_pointer into the buffer?
  */
-void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, const void *data_pointer, size_t data_size_in_bytes);
+void vklCopyDataIntoHostCoherentBuffer(vk::Buffer buffer, const void *data_pointer, size_t data_size_in_bytes);
 
 /*!
  *	Copies data into the buffer to a given offset, by reading it from the address at data_pointer and of the given byte size.
@@ -398,7 +395,7 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, const void *data_pointer
  *	@param	data_pointer			Pointer to the beginning of CPU-side data.
  *	@param	data_size_in_bytes		How many bytes shall be copied from the memory address at data_pointer into the buffer?
  */
-void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_bytes, const void *data_pointer,
+void vklCopyDataIntoHostCoherentBuffer(vk::Buffer buffer, size_t buffer_offset_in_bytes, const void *data_pointer,
                                        size_t data_size_in_bytes);
 
 /*!
@@ -412,7 +409,7 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
  * @param usageFlags Usage flags to use when creating the buffer.
  * @return The handle of the newly generated buffer.
  */
-VkBuffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, VkBufferUsageFlags usageFlags);
+vk::Buffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, vk::BufferUsageFlags usageFlags);
 
 /*!
  *	Binds the given descriptor set for the given graphics pipeline (internally using vkCmdBindDescriptorSets).
@@ -423,7 +420,7 @@ VkBuffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size,
  *	@param	pipeline			This handle must represent a valid graphics pipeline that has been created with 
  *								vklCreateGraphicsPipeline previously. Internally, its pipeline layout will be used.
  */
-void vklBindDescriptorSetToPipeline(VkDescriptorSet descriptor_set, VkPipeline pipeline);
+void vklBindDescriptorSetToPipeline(vk::DescriptorSet descriptor_set, vk::Pipeline pipeline);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
@@ -438,9 +435,9 @@ void vklBindDescriptorSetToPipeline(VkDescriptorSet descriptor_set, VkPipeline p
  *
  *	@return A handle to a newly created image with backing memory.
  */
-VkImage
-vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
-                                           VkFormat format, VkImageUsageFlags usage_flags);
+vk::Image
+vklCreateDeviceLocalImageWithBackingMemory(vk::PhysicalDevice physical_device, vk::Device device, uint32_t width, uint32_t height,
+                                           vk::Format format, vk::ImageUsageFlags usage_flags);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
@@ -457,10 +454,10 @@ vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkD
  *
  *	@return A handle to a newly created image with backing memory.
  */
-VkImage
-vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height,
-                                           VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers,
-                                           VkImageCreateFlags flags);
+vk::Image
+vklCreateDeviceLocalImageWithBackingMemory(vk::PhysicalDevice physical_device, vk::Device device, uint32_t width, uint32_t height,
+                                           vk::Format format, vk::ImageUsageFlags usage_flags, uint32_t array_layers,
+                                           vk::ImageCreateFlags flags);
 
 /*!
  *	Frees the memory (VkDeviceMemory) and destroys the image (VkImage) which has previously been created
@@ -468,7 +465,7 @@ vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkD
  *	@param	image		The image which shall be destroyed. The assigned VkDeviceMemory handle is tracked
  *						internally and will be freed before the image is destroyed.
  */
-void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image);
+void vklDestroyDeviceLocalImageAndItsBackingMemory(vk::Image image);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
@@ -481,8 +478,8 @@ void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image);
  *
  *	@return A handle to a newly created image with backing memory.
  */
-VkImage
-vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags);
+vk::Image
+vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage_flags);
 
 /*!
  *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
@@ -497,8 +494,8 @@ vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFo
  *
  *	@return A handle to a newly created image with backing memory.
  */
-VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags,
-                                                   uint32_t array_layers, VkImageCreateFlags flags);
+vk::Image vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage_flags,
+                                                   uint32_t array_layers, vk::ImageCreateFlags flags);
 
 /*!
  *	Gets the VkPipelineLayout for the given VkPipeline, given that the
@@ -509,7 +506,7 @@ VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t heig
  *	@param	pipeline	A valid VkPipeline handle which has been created with vklCreateGraphicsPipeline
  *	@return	The VkPipelineLayout handle that was used to create the given pipeline.
  */
-VkPipelineLayout vklGetLayoutForPipeline(VkPipeline pipeline);
+vk::PipelineLayout vklGetLayoutForPipeline(vk::Pipeline pipeline);
 
 /*!
  *	Returns the currently swap chain image index which has been set during the
@@ -536,18 +533,18 @@ uint32_t vklGetNumClearValues();
  *	Returns the framebuffers at the given index. The index is bounded by the number 
  *	of swap chain images (see vklGetNumFramebuffers()).
  */
-VkFramebuffer vklGetFramebuffer(uint32_t i);
+vk::Framebuffer vklGetFramebuffer(uint32_t i);
 
 /*!
  *	Returns the currently active framebuffer that is used as back buffer, i.e., which
  *	is to be rendered into during the current frame.
  */
-VkFramebuffer vklGetCurrentFramebuffer();
+vk::Framebuffer vklGetCurrentFramebuffer();
 
 /*!
  *	Returns the render pass which was used to create the framebuffers.
  */
-VkRenderPass vklGetRenderpass();
+vk::RenderPass vklGetRenderpass();
 
 /*!
  *	Returns the currently active command buffer (if there is one).
@@ -559,18 +556,18 @@ VkRenderPass vklGetRenderpass();
  *	recording commands until the next call to vklEndRecordingCommands(). Also during 
  *	the next call to vklEndRecordingCommands(), it will be submitted to the queue.
  */
-VkCommandBuffer vklGetCurrentCommandBuffer();
+vk::CommandBuffer vklGetCurrentCommandBuffer();
 
 /*!
  *  Returns the basic vulkan pipeline automatically set up by the
  *  framework.
  */
-VkPipeline vklGetBasicPipeline();
+vk::Pipeline vklGetBasicPipeline();
 
 /*!
  *  Returns the device chosen by the framework.
  */
-VkDevice vklGetDevice();
+vk::Device vklGetDevice();
 
 /*!
  * Destroys the framework
@@ -582,10 +579,10 @@ void vklDestroyFramework();
  */
 struct VklImageInfo {
     /*! The format of the image: */
-    VkFormat imageFormat;
+    vk::Format imageFormat;
 
     /*! Width and height of the image: */
-    VkExtent2D extent;
+    vk::Extent2D extent;
 };
 
 /*!
@@ -615,7 +612,7 @@ VklImageInfo vklGetDdsImageLevelInfo(const char* file, uint32_t level);
  *	@param	file	Path to a DDS image file
  *	@return	A newly created buffer in host-coherent memory which contains the data of the given DDS image file.
  */
-VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file);
+vk::Buffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file);
 
 /*!
  *	Loads one particular mipmap level of a DDS image from a file directly into a host-coherent buffer.
@@ -626,7 +623,7 @@ VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file);
  *	@param	level	The mipmap level which to load into the buffer (i.e., this one and only this one)
  *	@return	A newly created buffer in host-coherent memory which contains the data of the given DDS image file.
  */
-VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t level);
+vk::Buffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t level);
 
 /*!
  *	Loads one particular mipmap level of a particular face of a DDS image from a file directly into a host-coherent buffer.
@@ -637,7 +634,7 @@ VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t l
  *	@param	level	The mipmap level which to load into the buffer (i.e., this one and only this one)
  *	@return	A newly created buffer in host-coherent memory which contains the data of the given DDS image file.
  */
-VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level);
+vk::Buffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level);
 
 /*!
  *	Creates a perspective projection matrix which transforms a part of the scene into a unit cube based on the given parameters.
@@ -696,4 +693,4 @@ void vklEnablePipelineHotReloading(GLFWwindow* glfw_window, int glfw_key, int gl
  *                                  
  *  More information can be found in the Vulkan specification: https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdBindPipeline.html
  */
-void vklCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline);
+void vklCmdBindPipeline(vk::CommandBuffer commandBuffer, vk::PipelineBindPoint pipelineBindPoint, vk::Pipeline pipeline);

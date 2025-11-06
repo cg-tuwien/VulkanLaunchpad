@@ -102,8 +102,8 @@ GLFWkeyfun mPreviousKeyCallback = nullptr;
 int mKeyForShaderHotReloading = 0;
 int mModKeysForShaderHotReloading = 0;
 std::unordered_map<VkPipeline, std::tuple<VklGraphicsPipelineConfig, std::pair<std::string, std::string>, std::pair<std::string, std::string>, bool>> mUserKnownPipelines;
-std::unordered_map<VkPipeline, VkPipeline> mPipelineSurrogates;
-std::deque<std::tuple<int64_t, VkPipeline>> mPipelineGraveyard;
+std::unordered_map<VkPipeline, vk::Pipeline> mPipelineSurrogates;
+std::deque<std::tuple<int64_t, vk::Pipeline>> mPipelineGraveyard;
 
 // TODO: Implement this MAKEFOURCC in a sane way instead of just copying definitions.
 enum class byte : unsigned char {};
@@ -132,52 +132,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsMessengerCallback(
 	void* user_data);
 
 std::string mSpaceForToString;
-const char* to_string(VkResult result)
-{
-	switch (result) {
-	case VK_SUCCESS: return "VK_SUCCESS";
-	case VK_NOT_READY: return "VK_NOT_READY";
-	case VK_TIMEOUT: return "VK_TIMEOUT";
-	case VK_EVENT_SET: return "VK_EVENT_SET";
-	case VK_EVENT_RESET: return "VK_EVENT_RESET";
-	case VK_INCOMPLETE: return "VK_INCOMPLETE";
-	case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
-	case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
-	case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
-	case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
-	case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
-	case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
-	case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
-	case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
-	case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
-	case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
-	case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
-	case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
-	case VK_ERROR_UNKNOWN: return "VK_ERROR_UNKNOWN";
-	case VK_ERROR_OUT_OF_POOL_MEMORY: return "VK_ERROR_OUT_OF_POOL_MEMORY";
-	case VK_ERROR_INVALID_EXTERNAL_HANDLE: return "VK_ERROR_INVALID_EXTERNAL_HANDLE";
-	case VK_ERROR_FRAGMENTATION: return "VK_ERROR_FRAGMENTATION";
-	case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: return "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS";
-	case VK_ERROR_SURFACE_LOST_KHR: return "VK_ERROR_SURFACE_LOST_KHR";
-	case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
-	case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
-	case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
-	case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR: return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
-	case VK_ERROR_VALIDATION_FAILED_EXT: return "VK_ERROR_VALIDATION_FAILED_EXT";
-	case VK_ERROR_INVALID_SHADER_NV: return "VK_ERROR_INVALID_SHADER_NV";
-	case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT: return "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT";
-	case VK_ERROR_NOT_PERMITTED_EXT: return "VK_ERROR_NOT_PERMITTED_EXT";
-	case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT: return "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT";
-	case VK_THREAD_IDLE_KHR: return "VK_THREAD_IDLE_KHR";
-	case VK_THREAD_DONE_KHR: return "VK_THREAD_DONE_KHR";
-	case VK_OPERATION_DEFERRED_KHR: return "VK_OPERATION_DEFERRED_KHR";
-	case VK_OPERATION_NOT_DEFERRED_KHR: return "VK_OPERATION_NOT_DEFERRED_KHR";
-	case VK_PIPELINE_COMPILE_REQUIRED_EXT: return "VK_PIPELINE_COMPILE_REQUIRED_EXT";
-	default:
-		mSpaceForToString = std::to_string(result);
-		return mSpaceForToString.c_str();
-	}
-}
 
 // Creates a shader module from the given Spir-V code, returns the created shader module and its create info.
 std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(const uint32_t* spirv, size_t byteSize, const vk::ShaderStageFlagBits shaderStage, const char* entryPoint = "main")
@@ -357,7 +311,7 @@ std::string loadSlangShaderCodeFromFile(const std::string& shader_filename)
     return content;
 }
 
-VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
+vk::Pipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
 {
     if (!loadShadersFromMemoryInstead && !vklFrameworkInitialized()) {
         VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
@@ -485,13 +439,11 @@ VkPipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& confi
 	mDevice.destroyShaderModule(std::get<vk::ShaderModule>(fragTpl));
 	mDevice.destroyShaderModule(std::get<vk::ShaderModule>(vertTpl));
 
-	auto graphicsPipelineHandle = static_cast<VkPipeline>(graphicsPipeline);
-
-	mPipelineLayouts[graphicsPipelineHandle] = std::forward_as_tuple(std::move(descriptorSetLayout), std::move(pipelineLayout));
-	return graphicsPipelineHandle;
+	mPipelineLayouts[graphicsPipeline] = std::forward_as_tuple(std::move(descriptorSetLayout), std::move(pipelineLayout));
+	return graphicsPipeline;
 }
 
-VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
+vk::Pipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bool loadShadersFromMemoryInstead)
 {
 	auto graphicsPipelineHandle = createGraphicsPipelineInternal(config, loadShadersFromMemoryInstead);
 	if (VK_NULL_HANDLE == graphicsPipelineHandle) {
@@ -502,7 +454,7 @@ VkPipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, bo
 	return graphicsPipelineHandle;
 }
 
-VkPipeline getGraphicsPipelineOrItsSurrogate(VkPipeline originalPipelineHandle)
+vk::Pipeline getGraphicsPipelineOrItsSurrogate(vk::Pipeline originalPipelineHandle)
 {
 	auto it = mPipelineSurrogates.find(originalPipelineHandle);
 	if (it != mPipelineSurrogates.end()) {
@@ -511,15 +463,15 @@ VkPipeline getGraphicsPipelineOrItsSurrogate(VkPipeline originalPipelineHandle)
 	return originalPipelineHandle;
 }
 
-void destroyGraphicsPipelineInternal(VkPipeline pipeline)
+void destroyGraphicsPipelineInternal(vk::Pipeline pipeline)
 {
-	mDevice.destroy(vk::Pipeline{ pipeline });
+	mDevice.destroy(pipeline);
 
 	// Also remove it from the graveyard:
 	mPipelineGraveyard.erase(std::remove_if(
 			mPipelineGraveyard.begin(),
 			mPipelineGraveyard.end(),
-			[pipeline](const std::tuple<int64_t, VkPipeline>& element) { 
+			[pipeline](const std::tuple<int64_t, vk::Pipeline>& element) {
 				return std::get<1>(element) == pipeline; 
 			}
 		), mPipelineGraveyard.end());
@@ -535,7 +487,7 @@ void destroyGraphicsPipelineInternal(VkPipeline pipeline)
 	// but NOT from known pipelines!
 }
 
-void vklDestroyGraphicsPipeline(VkPipeline pipeline)
+void vklDestroyGraphicsPipeline(vk::Pipeline pipeline)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
@@ -601,32 +553,26 @@ vk::MemoryAllocateInfo vklCreateMemoryAllocateInfo(vk::DeviceSize bufferSize, vk
 	return memoryAllocInfo;
 }
 
-VkMemoryAllocateInfo vklCreateMemoryAllocateInfo(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags memoryPropertyFlags) {
-  return static_cast<VkMemoryAllocateInfo>(vklCreateMemoryAllocateInfo(static_cast<vk::DeviceSize>(bufferSize), static_cast<vk::MemoryRequirements>(memoryRequirements), static_cast<vk::MemoryPropertyFlags>(memoryPropertyFlags)));
-}
-
-VkDeviceMemory vklAllocateMemoryForGivenRequirements(VkDeviceSize bufferSize, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags memoryPropertyFlags)
+vk::DeviceMemory vklAllocateMemoryForGivenRequirements(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags memoryPropertyFlags)
 {
     const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements, memoryPropertyFlags);
 
-	// Allocate:
-	VkDeviceMemory memory;
-    VkResult returnCode = vkAllocateMemory(static_cast<VkDevice>(mDevice), &memoryAllocInfo, NULL, &memory);
-	if (returnCode == VK_SUCCESS) {
-		return memory;
-	}
-	else {
-    	VKL_EXIT_WITH_ERROR(std::string("Error allocating memory of size [") + std::to_string(bufferSize) + "] and requirements[" + std::to_string(memoryRequirements.alignment) + ", " + std::to_string(memoryRequirements.memoryTypeBits) + ", " + std::to_string(memoryRequirements.size) + "]\n    Error Code: " + to_string(returnCode));
-	}
+    // Allocate:
+    vk::DeviceMemory memory;
+    auto returnCode = mDevice.allocateMemory(&memoryAllocInfo, nullptr, &memory);
+    if (returnCode == vk::Result::eSuccess) {
+        return memory;
+    }
+    VKL_EXIT_WITH_ERROR(std::string("Error allocating memory of size [") + std::to_string(bufferSize) + "] and requirements[" + std::to_string(memoryRequirements.alignment) + ", " + std::to_string(memoryRequirements.memoryTypeBits) + ", " + std::to_string(memoryRequirements.size) + "]\n    Error Code: " + vk::to_string(returnCode));
 }
 
-vk::UniqueDeviceMemory vklAllocateMemoryForGivenRequirements(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags memoryPropertyFlags) {
+vk::UniqueDeviceMemory vklAllocateUniqueMemoryForGivenRequirements(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags memoryPropertyFlags) {
   const auto memoryAllocInfo = vklCreateMemoryAllocateInfo(bufferSize, memoryRequirements, memoryPropertyFlags);
   auto allocatedMemory = mDevice.allocateMemoryUnique(memoryAllocInfo, nullptr, mDispatchLoader);
   return allocatedMemory;
 }
 
-VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage)
+vk::Buffer vklCreateHostCoherentBufferWithBackingMemory(vk::DeviceSize buffer_size, vk::BufferUsageFlags buffer_usage)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
@@ -634,7 +580,7 @@ VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, 
 
 	// Describe a new buffer:
 	auto createInfo = vk::BufferCreateInfo{}
-		.setSize(static_cast<vk::DeviceSize>(buffer_size))
+		.setSize(buffer_size)
 		.setUsage(vk::BufferUsageFlags{ buffer_usage });
 
 #ifdef VKL_HAS_VMA
@@ -653,19 +599,18 @@ VkBuffer vklCreateHostCoherentBufferWithBackingMemory(VkDeviceSize buffer_size, 
 	auto buffer = mDevice.createBuffer(createInfo);
 
 	// Allocate the memory (we want host-coherent memory):
-    auto memory = vklAllocateMemoryForGivenRequirements(static_cast<vk::DeviceSize>(buffer_size), mDevice.getBufferMemoryRequirements(buffer), vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    auto memory = vklAllocateUniqueMemoryForGivenRequirements(buffer_size, mDevice.getBufferMemoryRequirements(buffer), vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     
 	// Bind the buffer handle to the memory:
-	// mDevice.bindBufferMemory(buffer, memory.get(), 0);
 	mDevice.bindBufferMemory(buffer, memory.get(), 0);
 
 	// Remember the assignment:
-	mHostCoherentBuffersWithBackingMemory[static_cast<VkBuffer>(buffer)] = std::move(memory);
+	mHostCoherentBuffersWithBackingMemory[buffer] = std::move(memory);
 
-	return static_cast<VkBuffer>(buffer);
+	return buffer;
 }
 
-VkBuffer vklCreateDeviceLocalBufferWithBackingMemory(VkDeviceSize buffer_size, VkBufferUsageFlags buffer_usage)
+vk::Buffer vklCreateDeviceLocalBufferWithBackingMemory(vk::DeviceSize buffer_size, vk::BufferUsageFlags buffer_usage)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
@@ -673,8 +618,8 @@ VkBuffer vklCreateDeviceLocalBufferWithBackingMemory(VkDeviceSize buffer_size, V
 
 	// Describe a new buffer:
 	auto createInfo = vk::BufferCreateInfo{}
-		.setSize(static_cast<vk::DeviceSize>(buffer_size))
-		.setUsage(vk::BufferUsageFlags{ buffer_usage });
+		.setSize(buffer_size)
+		.setUsage(buffer_usage);
 
 #ifdef VKL_HAS_VMA
 	if (vklHasVmaAllocator()) {
@@ -692,24 +637,23 @@ VkBuffer vklCreateDeviceLocalBufferWithBackingMemory(VkDeviceSize buffer_size, V
 	auto buffer = mDevice.createBuffer(createInfo);
 
 	// Allocate the memory (we want device-local memory):
-	auto memory = vklAllocateMemoryForGivenRequirements(static_cast<vk::DeviceSize>(buffer_size), mDevice.getBufferMemoryRequirements(buffer), vk::MemoryPropertyFlagBits::eDeviceLocal);
+	auto memory = vklAllocateUniqueMemoryForGivenRequirements(buffer_size, mDevice.getBufferMemoryRequirements(buffer), vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 	// Bind the buffer handle to the memory:
-	// mDevice.bindBufferMemory(buffer, memory.get(), 0);
 	mDevice.bindBufferMemory(buffer, memory.get(), 0);
 
 	// Remember the assignment:
-	mDeviceLocalBuffersWithBackingMemory[static_cast<VkBuffer>(buffer)] = std::move(memory);
+	mDeviceLocalBuffersWithBackingMemory[buffer] = std::move(memory);
 
-	return static_cast<VkBuffer>(buffer);
+	return buffer;
 }
 
-void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer)
+void vklDestroyHostCoherentBufferAndItsBackingMemory(vk::Buffer buffer)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
 	}
-	if (VkBuffer{} == buffer) {
+	if (vk::Buffer{} == buffer) {
 		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklDestroyHostCoherentBufferAndItsBackingMemory(...)");
 	}
 
@@ -729,16 +673,16 @@ void vklDestroyHostCoherentBufferAndItsBackingMemory(VkBuffer buffer)
 	}
 
 	if (!resourceDestroyed) {
-		mDevice.destroy(vk::Buffer{ buffer });
+		mDevice.destroy(buffer);
 	}
 }
 
-void vklDestroyDeviceLocalBufferAndItsBackingMemory(VkBuffer buffer)
+void vklDestroyDeviceLocalBufferAndItsBackingMemory(vk::Buffer buffer)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
 	}
-	if (VkBuffer{} == buffer) {
+	if (vk::Buffer{} == buffer) {
 		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklDestroyDeviceLocalBufferAndItsBackingMemory(...)");
 	}
 
@@ -758,21 +702,21 @@ void vklDestroyDeviceLocalBufferAndItsBackingMemory(VkBuffer buffer)
 	}
 
 	if (!resourceDestroyed) {
-		mDevice.destroy(vk::Buffer{ buffer });
+		mDevice.destroy(buffer);
 	}
 }
 
-void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, const void* data_pointer, size_t data_size_in_bytes)
+void vklCopyDataIntoHostCoherentBuffer(vk::Buffer buffer, const void* data_pointer, size_t data_size_in_bytes)
 {
 	vklCopyDataIntoHostCoherentBuffer(buffer, 0, data_pointer, data_size_in_bytes);
 }
 
-void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_bytes, const void* data_pointer, size_t data_size_in_bytes)
+void vklCopyDataIntoHostCoherentBuffer(vk::Buffer buffer, size_t buffer_offset_in_bytes, const void* data_pointer, size_t data_size_in_bytes)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
 	}
-	if (VkBuffer{} == buffer) {
+	if (vk::Buffer{} == buffer) {
 		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklCopyDataIntoHostCoherentBuffer(...)");
 	}
 
@@ -811,12 +755,9 @@ void vklCopyDataIntoHostCoherentBuffer(VkBuffer buffer, size_t buffer_offset_in_
  * @param usageFlags Usage flags to use when createing the buffer.
  * @return The handle of the newly generated buffer.
  */
-VkBuffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, VkBufferUsageFlags usageFlags) {
-    VkBuffer result {};
-    result = vklCreateHostCoherentBufferWithBackingMemory(
-            static_cast<VkDeviceSize>(size),
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | usageFlags
-    );
+vk::Buffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, vk::BufferUsageFlags usageFlags) {
+    vk::Buffer result;
+    result = vklCreateHostCoherentBufferWithBackingMemory(size, vk::BufferUsageFlagBits::eTransferDst | usageFlags);
     vklCopyDataIntoHostCoherentBuffer(result, data, size);
     return result;
 }
@@ -831,7 +772,7 @@ const char** vklGetRequiredInstanceExtensions(uint32_t* out_count)
 	return vklRequiredInstanceExtensions;
 }
 
-void vklBindDescriptorSetToPipeline(VkDescriptorSet descriptor_set, VkPipeline pipeline)
+void vklBindDescriptorSetToPipeline(vk::DescriptorSet descriptor_set, vk::Pipeline pipeline)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
@@ -847,19 +788,17 @@ void vklBindDescriptorSetToPipeline(VkDescriptorSet descriptor_set, VkPipeline p
 	if (mPipelineLayouts.end() == searchPl) {
 		VKL_EXIT_WITH_ERROR("Couldn't find the VkPipeline passed to vklBindDescriptorSetToPipeline. Is it a valid handle and has it been created with vklCreateGraphicsPipeline(...)?");
 	}
-	
-	auto dset = vk::DescriptorSet{ descriptor_set };
-	auto pipe = vk::Pipeline{ pipeline };
+
 	auto pipeLayout = std::get<vk::UniquePipelineLayout>(searchPl->second).get();
 
 	cb.bindDescriptorSets(
 		vk::PipelineBindPoint::eGraphics, pipeLayout,
-		0u, 1u, &dset, // <--- Bind the actual descriptors to the pipeline
+		0u, 1u, &descriptor_set, // <--- Bind the actual descriptors to the pipeline
 		0u, nullptr
 	);
 }
 
-VkPipelineLayout vklGetLayoutForPipeline(VkPipeline pipeline)
+vk::PipelineLayout vklGetLayoutForPipeline(vk::Pipeline pipeline)
 {
 	pipeline = getGraphicsPipelineOrItsSurrogate(pipeline);
 
@@ -867,10 +806,10 @@ VkPipelineLayout vklGetLayoutForPipeline(VkPipeline pipeline)
 	if (mPipelineLayouts.end() == searchPl) {
 		VKL_EXIT_WITH_ERROR("Couldn't find the VkPipeline passed to vklBindDescriptorSetToPipeline. Is it a valid handle and has it been created with vklCreateGraphicsPipeline(...)?");
 	}
-	return static_cast<VkPipelineLayout>(std::get<vk::UniquePipelineLayout>(searchPl->second).get());
+	return std::get<vk::UniquePipelineLayout>(searchPl->second).get();
 }
 
-bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysicalDevice vk_physical_device, VkDevice vk_device, VkQueue vk_queue, const VklSwapchainConfig& swapchain_config)
+bool vklInitFramework(vk::Instance vk_instance, vk::SurfaceKHR vk_surface, vk::PhysicalDevice vk_physical_device, vk::Device vk_device, vk::Queue vk_queue, const VklSwapchainConfig& swapchain_config)
 {
 	if (VK_NULL_HANDLE == vk_instance) {
 		VKL_EXIT_WITH_ERROR("Invalid VkInstance passed to vklInitFramework");
@@ -910,27 +849,27 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 			if (VK_NULL_HANDLE == imageDetails[j].imageHandle) {
 				continue;
 			}
-			if (VkFormat{} == imageDetails[j].imageFormat) {
+			if (vk::Format{} == imageDetails[j].imageFormat) {
 				VKL_EXIT_WITH_ERROR("Invalid VkFormat passed to vklInitFramework through VklSwapchainConfig::swapchainImages[" + std::to_string(i) + "]::imageDetails[" + std::to_string(j) + "]::imageFormat");
 			}
-			if (VkImageUsageFlags{} == imageDetails[j].imageUsage) {
+			if (vk::ImageUsageFlags{} == imageDetails[j].imageUsage) {
 				VKL_EXIT_WITH_ERROR("Invalid VkImageUsageFlags passed to vklInitFramework through VklSwapchainConfig::swapchainImages[" + std::to_string(i) + "]::imageDetails[" + std::to_string(j) + "]::imageUsage");
 			}
 		}
 	}
 
 	// Switch to Vulkan-Hpp (can't stand the C interface):
-	mInstance = vk::Instance{ vk_instance };
-	mSurface = vk::SurfaceKHR{ vk_surface };
-	mPhysicalDevice = vk::PhysicalDevice{ vk_physical_device };
-	mDevice = vk::Device{ vk_device };
+	mInstance = vk_instance;
+	mSurface = vk_surface;
+	mPhysicalDevice = vk_physical_device;
+	mDevice = vk_device;
 	mDispatchLoader = DISPATCH_LOADER_NAMESPACE::DispatchLoaderStatic();
-	mQueue = vk::Queue{ vk_queue };
+	mQueue = vk_queue;
 	mSwapchainConfig = swapchain_config;
 
 	// Create a DYNAMIC DISPATCH LOADER:
-	mDynamicDispatch = DISPATCH_LOADER_NAMESPACE::DispatchLoaderDynamic{ static_cast<VkInstance>(mInstance), vkGetInstanceProcAddr };
-	
+	mDynamicDispatch = DISPATCH_LOADER_NAMESPACE::DispatchLoaderDynamic{ mInstance, vkGetInstanceProcAddr };
+
 	// Test instance and add DEBUG UTILS MESSENGER:
 	mDebugUtilsMessenger = mInstance.createDebugUtilsMessengerEXT(vk::DebugUtilsMessengerCreateInfoEXT{
 		vk::DebugUtilsMessengerCreateFlagsEXT{},
@@ -993,19 +932,19 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 			// Sanity checks:
 			if (attachments_i[j].imageFormat != attachments_0[j].imageFormat) {
 				VKL_EXIT_WITH_ERROR("Corresponding VklSwapchainImageDetails::imageFormat entries must be set to the same formats! However, element[" + std::to_string(i) + ", " + std::to_string(j) + "] is set to "
-                                    + vk::to_string(static_cast<vk::Format>(attachments_i[j].imageFormat)) + ", while element[0, " + std::to_string(j) + "] is set to " + vk::to_string(static_cast<vk::Format>(attachments_0[j].imageFormat)));
+                                    + vk::to_string(attachments_i[j].imageFormat) + ", while element[0, " + std::to_string(j) + "] is set to " + vk::to_string(attachments_0[j].imageFormat));
 			}
 			if (attachments_i[j].imageUsage != attachments_0[j].imageUsage) {
 				VKL_EXIT_WITH_ERROR("Corresponding VklSwapchainImageDetails::imageUsage entries must be set to the same values! However, element[" + std::to_string(i) + ", " + std::to_string(j) + "] is set to "
-                                    + vk::to_string(static_cast<vk::ImageUsageFlags>(attachments_i[j].imageUsage)) + ", while element[0, " + std::to_string(j) + "] is set to " + vk::to_string(static_cast<vk::ImageUsageFlags>(attachments_0[j].imageUsage)));
+                                    + vk::to_string(attachments_i[j].imageUsage) + ", while element[0, " + std::to_string(j) + "] is set to " + vk::to_string(attachments_0[j].imageUsage));
 			}
 
 			// Create the views:
-			if ((VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT & attachments_i[j].imageUsage) != 0) {
+			if (vk::ImageUsageFlagBits::eDepthStencilAttachment & attachments_i[j].imageUsage) {
 				// Create a view for a depth buffer:
 				mSwapchainImageViews[i][j] = mDevice.createImageView(vk::ImageViewCreateInfo{
 					{}, vk::Image{attachments_i[j].imageHandle },
-					vk::ImageViewType::e2D, static_cast<vk::Format>(attachments_i[j].imageFormat),
+					vk::ImageViewType::e2D, attachments_i[j].imageFormat,
 					vk::ComponentMapping{},
 					vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eDepth, 0u, 1u, 0u, 1u }
 				});
@@ -1014,7 +953,7 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 				// Create a view for a color buffer:
 				mSwapchainImageViews[i][j] = mDevice.createImageView(vk::ImageViewCreateInfo{
 					{}, vk::Image{ attachments_i[j].imageHandle },
-					vk::ImageViewType::e2D, static_cast<vk::Format>(attachments_i[j].imageFormat),
+					vk::ImageViewType::e2D, attachments_i[j].imageFormat,
 					vk::ComponentMapping{},
 					vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0u, 1u, 0u, 1u }
 				});
@@ -1025,22 +964,22 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 				auto curAttachmentIndex = static_cast<uint32_t>(attachmentDescriptions.size());
 
 				attachmentDescriptions.emplace_back(vk::AttachmentDescription{}
-					.setFormat(static_cast<vk::Format>(attachments_i[j].imageFormat))
+					.setFormat(attachments_i[j].imageFormat)
 					.setLoadOp(vk::AttachmentLoadOp::eClear)		// What do do with the image when the renderpass starts? => Make sure that we have cleared the content of previous frames!
 					.setStoreOp( // What to do with the image when the renderpass has finished? => We don't need the depth buffer for anything afterwards.
-						(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT & attachments_i[j].imageUsage) != 0
+						vk::ImageUsageFlagBits::eDepthStencilAttachment & attachments_i[j].imageUsage
 						? vk::AttachmentStoreOp::eDontCare
 						: vk::AttachmentStoreOp::eStore)
 					.setInitialLayout(vk::ImageLayout::eUndefined)	// When the renderpass starts, in which layout will the image be? => We don't care since we're clearing it.
 					.setFinalLayout( // When the renderpass finishes, in which layout shall the image be transfered? => The image shall be presented directly afterwards. 
-						(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT & attachments_i[j].imageUsage) != 0
+						vk::ImageUsageFlagBits::eDepthStencilAttachment & attachments_i[j].imageUsage
 						? vk::ImageLayout::eDepthStencilAttachmentOptimal // When the renderpass finishes, in which layout shall the image be transferred? => It will be in eDepthStencilAttachmentOptimal layout anyways.
 						: vk::ImageLayout::ePresentSrcKHR)
 					.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
 					.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
 				);
 				
-				if ((VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT & attachments_i[j].imageUsage) != 0) {
+				if (vk::ImageUsageFlagBits::eDepthStencilAttachment & attachments_i[j].imageUsage) {
 					depthAttachmentsInSubpass0.emplace_back(curAttachmentIndex, vk::ImageLayout::eDepthStencilAttachmentOptimal); // Describes the index (w.r.t. attachmentDescriptions) and the desired layout of the depth attachment for subpass 0
 				}
 				else {
@@ -1048,7 +987,7 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 				}
 			}
 
-			currentClearValues.emplace_back(*reinterpret_cast<vk::ClearValue*>(&attachments_i[j].clearValue));
+			currentClearValues.emplace_back(attachments_i[j].clearValue);
 		}
 	}
 
@@ -1136,7 +1075,7 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
 	// We have to make sure that not more than #CONCURRENT_FRAMES are in flight at the same time. We can use fences to ensure that. 
 	mFrameInFlightIndex = -1; // Initialize
 
-	mBasicPipeline = vk::Pipeline{ createGraphicsPipelineInternal(VklGraphicsPipelineConfig{
+	mBasicPipeline = createGraphicsPipelineInternal(VklGraphicsPipelineConfig{
         std::make_pair(
             "struct VSInput {\n"
             "   float3 position : POSITION;\n"
@@ -1169,15 +1108,15 @@ bool vklInitFramework(VkInstance vk_instance, VkSurfaceKHR vk_surface, VkPhysica
         ),
 		// Further config parameters:
 		{
-			VkVertexInputBindingDescription { 0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX }
+			vk::VertexInputBindingDescription { 0, sizeof(glm::vec3), vk::VertexInputRate::eVertex }
 		},
 		{
-			VkVertexInputAttributeDescription { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0u }
+			vk::VertexInputAttributeDescription { 0, 0, vk::Format::eR32G32B32Sfloat, 0u }
 		},
-		VK_POLYGON_MODE_FILL,
-		VK_CULL_MODE_NONE,
+		vk::PolygonMode::eFill,
+		vk::CullModeFlagBits::eNone,
 		{ /* no descriptors */ }
-	}, /* load shaders from memory: */ true) };
+	}, /* load shaders from memory: */ true);
 
 	// Create a default COMMAND POOL which command buffers will be allocated from during vklStartRecordingCommands()
 	mCommandPool = mDevice.createCommandPoolUnique(vk::CommandPoolCreateInfo{ vk::CommandPoolCreateFlagBits::eTransient }, nullptr, mDispatchLoader);
@@ -1263,10 +1202,10 @@ double vklWaitForNextSwapchainImage()
 
 	// Wait for the fence of the current image before reusing the same image available semaphore (as we have used #CONCURRENT_FRAMES in the past)
 	vk::Result returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
-	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
+	VKL_CHECK_VULKAN_ERROR(returnCode);
 
 	returnCode = mDevice.resetFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get());
-	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
+	VKL_CHECK_VULKAN_ERROR(returnCode);
 
 	// Keep house with the in-flight images:
 	for (auto& mapping : mImagesInFlightFenceIndices) { // However, we don't know which index this fence had been mapped to => we have to search
@@ -1277,12 +1216,12 @@ double vklWaitForNextSwapchainImage()
 	}
 
 	// Get the next image from the swap chain:
-	mCurrentSwapChainImageIndex = mDevice.acquireNextImageKHR(vk::SwapchainKHR{ mSwapchainConfig.swapchainHandle }, std::numeric_limits<uint64_t>::max(), mImageAvailableSemaphores[mFrameInFlightIndex].get(), nullptr).value;
+	mCurrentSwapChainImageIndex = mDevice.acquireNextImageKHR(mSwapchainConfig.swapchainHandle, std::numeric_limits<uint64_t>::max(), mImageAvailableSemaphores[mFrameInFlightIndex].get(), nullptr).value;
 	// Safety-check on the returned image index:
 	if (mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] >= 0) {
 		// it is set => must perform an extra wait
 		returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex]].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
-		VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
+		VKL_CHECK_VULKAN_ERROR(returnCode);
 		// But do not reset! Otherwise we will wait forever at the next waitForFences that will happen for sure.
 	}
 
@@ -1319,16 +1258,15 @@ void vklPresentCurrentSwapchainImage()
 	}, mSyncHostWithDeviceFence[mFrameInFlightIndex].get());
 
 	// Now present the image as soon as the render finished semaphore has been signaled:
-	auto swapchainHandle = vk::SwapchainKHR{ mSwapchainConfig.swapchainHandle };
 	auto presentInfo = vk::PresentInfoKHR()
 		.setWaitSemaphoreCount(1u)
 		.setPWaitSemaphores(&mRenderFinishedSemaphores[mFrameInFlightIndex].get())
 		.setSwapchainCount(1u)
-		.setPSwapchains(&swapchainHandle)
+		.setPSwapchains(&mSwapchainConfig.swapchainHandle)
 		.setPImageIndices(&mCurrentSwapChainImageIndex);
 	
 	vk::Result returnCode = mQueue.presentKHR(presentInfo);
-	VKL_CHECK_VULKAN_ERROR(static_cast<VkResult>(returnCode));
+	VKL_CHECK_VULKAN_ERROR(returnCode);
 
 	mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] = mFrameInFlightIndex;
 }
@@ -1401,52 +1339,52 @@ uint32_t vklGetNumClearValues()
 {
   return static_cast<uint32_t>(mClearValues.size());
 }
-VkFramebuffer vklGetFramebuffer(uint32_t i)
+vk::Framebuffer vklGetFramebuffer(uint32_t i)
 {
 	if (i >= mFramebuffers.size()) {
 		VKL_EXIT_WITH_ERROR("The given index[" + std::to_string(i) + "] is larger than the number of available framebuffers[" + std::to_string(mFramebuffers.size()) + "]");
 	}
-	return static_cast<VkFramebuffer>(mFramebuffers[i].get());
+	return mFramebuffers[i].get();
 }
-VkFramebuffer vklGetCurrentFramebuffer()
+vk::Framebuffer vklGetCurrentFramebuffer()
 {
 	return vklGetFramebuffer(vklGetCurrentSwapChainImageIndex());
 }
-VkRenderPass vklGetRenderpass()
+vk::RenderPass vklGetRenderpass()
 {
-	return static_cast<VkRenderPass>(mRenderpass.get());
+	return mRenderpass.get();
 }
-VkCommandBuffer vklGetCurrentCommandBuffer()
+vk::CommandBuffer vklGetCurrentCommandBuffer()
 {
 	if(mSingleUseCommandBuffers.empty()) {
 		VKL_EXIT_WITH_ERROR("There are no command buffers. Have you called vklStartRecordingCommands beforehand?");
 	}
 	const auto& cb = mSingleUseCommandBuffers.back().get();
-	return static_cast<VkCommandBuffer>(cb);
+	return cb;
 }
 
-VkPipeline vklGetBasicPipeline()
+vk::Pipeline vklGetBasicPipeline()
 {
-    return static_cast<VkPipeline>(mBasicPipeline);
+    return mBasicPipeline;
 }
 
-VkDevice vklGetDevice()
+vk::Device vklGetDevice()
 {
-  return static_cast<VkDevice>(mDevice);
+  return mDevice;
 }
 
-VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
+vk::Image vklCreateDeviceLocalImageWithBackingMemory(vk::PhysicalDevice physical_device, vk::Device device, uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage_flags, uint32_t array_layers, vk::ImageCreateFlags flags)
 {
 	auto createInfo = vk::ImageCreateInfo{}
-		.setFlags(static_cast<vk::ImageCreateFlagBits>(flags))
+		.setFlags(flags)
 		.setImageType(vk::ImageType::e2D)
 		.setExtent({ width, height, 1u })
 		.setMipLevels(static_cast<uint32_t>(1 + std::floor(std::log2(std::max(width, height)))))
 		.setArrayLayers(array_layers)
-		.setFormat(static_cast<vk::Format>(format))
+		.setFormat(format)
 		.setTiling(vk::ImageTiling::eOptimal)			// We just create all images in optimal tiling layout
 		.setInitialLayout(vk::ImageLayout::eUndefined)	// Initially, the layout is undefined
-		.setUsage(static_cast<vk::ImageUsageFlags>(usage_flags))
+		.setUsage(usage_flags)
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setSharingMode(vk::SharingMode::eExclusive);
 
@@ -1463,15 +1401,15 @@ VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_dev
 	}
 #endif
 
-	auto image = vk::Device{ device }.createImage(createInfo);
+	auto image = device.createImage(createInfo);
 
-	auto memoryRequirements = vk::Device{ device }.getImageMemoryRequirements(image);
+	auto memoryRequirements = device.getImageMemoryRequirements(image);
 
 	auto memoryAllocInfo = vk::MemoryAllocateInfo{}
 		.setAllocationSize(memoryRequirements.size)
 		.setMemoryTypeIndex([&]() {
 			// Get memory types supported by the physical device:
-			auto memoryProperties = vk::PhysicalDevice{ physical_device }.getMemoryProperties();
+			auto memoryProperties = physical_device.getMemoryProperties();
 
 			// In search for a suitable memory type INDEX:
 			int selectedMemIndex = -1;
@@ -1507,43 +1445,43 @@ VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_dev
 			return static_cast<uint32_t>(selectedMemIndex);
 		}());
 
-	auto memory = vk::Device{ device }.allocateMemoryUnique(memoryAllocInfo, nullptr, mDispatchLoader);
+	auto memory = device.allocateMemoryUnique(memoryAllocInfo, nullptr, mDispatchLoader);
 
-	vk::Device{ device }.bindImageMemory(image, memory.get(), 0);
+	device.bindImageMemory(image, memory.get(), 0);
 
 	// Remember the assignment:
 	mImagesWithBackingMemory[static_cast<VkImage>(image)] = std::move(memory);
 
-	return static_cast<VkImage>(image);
+	return image;
 }
 
-VkImage vklCreateDeviceLocalImageWithBackingMemory(VkPhysicalDevice physical_device, VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
+vk::Image vklCreateDeviceLocalImageWithBackingMemory(vk::PhysicalDevice physical_device, vk::Device device, uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage_flags)
 {
 	return vklCreateDeviceLocalImageWithBackingMemory(physical_device, device, width, height, format, usage_flags, /* one layer: */ 1u, /* no flags: */{});
 }
 
-VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags)
+vk::Image vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage_flags)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
 	}
-	return vklCreateDeviceLocalImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags);
+	return vklCreateDeviceLocalImageWithBackingMemory(mPhysicalDevice, mDevice, width, height, format, usage_flags);
 }
 
-VkImage vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage_flags, uint32_t array_layers, VkImageCreateFlags flags)
+vk::Image vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage_flags, uint32_t array_layers, vk::ImageCreateFlags flags)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
 	}
-	return vklCreateDeviceLocalImageWithBackingMemory(static_cast<VkPhysicalDevice>(mPhysicalDevice), static_cast<VkDevice>(mDevice), width, height, format, usage_flags, array_layers, flags);
+	return vklCreateDeviceLocalImageWithBackingMemory(mPhysicalDevice, mDevice, width, height, format, usage_flags, array_layers, flags);
 }
 
-void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image)
+void vklDestroyDeviceLocalImageAndItsBackingMemory(vk::Image image)
 {
 	if (!vklFrameworkInitialized()) {
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
 	}
-	if (VkImage{} == image) {
+	if (vk::Image{} == image) {
 		VKL_EXIT_WITH_ERROR("Invalid image handle passed to vklDestroyImageAndItsBackingMemory(...)");
 	}
 
@@ -1563,10 +1501,9 @@ void vklDestroyDeviceLocalImageAndItsBackingMemory(VkImage image)
 	}
 
 	if (!resourceDestroyed) {
-		mDevice.destroy(vk::Image{ image });
+		mDevice.destroy(image);
 	}
 }
-#pragma endregion
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsMessengerCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
@@ -1609,34 +1546,34 @@ std::tuple<VklImageInfo, gli::texture2d> loadDdsImageWithGli(const char* file, u
 	const uint32_t width = gliTex.extent(static_cast<gli::texture2d::size_type>(level)).x;
 	const uint32_t height = gliTex.extent(static_cast<gli::texture2d::size_type>(level)).y;
 	auto gliFormat = gliTex.format();
-	VkFormat vkFormat;
+	vk::Format vkFormat;
 
 	switch (gliFormat) {
 		// See "Khronos Data Format Specification": https://www.khronos.org/registry/DataFormat/specs/1.3/dataformat.1.3.html#S3TC
 		// And Vulkan specification: https://www.khronos.org/registry/vulkan/specs/1.2-khr-extensions/html/chap42.html#appendix-compressedtex-bc
 	case gli::format::FORMAT_RGB_DXT1_UNORM_BLOCK8:
-		vkFormat = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+	    vkFormat = vk::Format::eBc1RgbSrgbBlock;
 		break;
 	case gli::format::FORMAT_RGB_DXT1_SRGB_BLOCK8:
-		vkFormat = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+	    vkFormat = vk::Format::eBc1RgbSrgbBlock;
 		break;
 	case gli::format::FORMAT_RGBA_DXT1_UNORM_BLOCK8:
-		vkFormat = VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+	    vkFormat = vk::Format::eBc1RgbaSrgbBlock;
 		break;
 	case gli::format::FORMAT_RGBA_DXT1_SRGB_BLOCK8:
-		vkFormat = VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+	    vkFormat = vk::Format::eBc1RgbaSrgbBlock;
 		break;
 	case gli::format::FORMAT_RGBA_DXT3_UNORM_BLOCK16:
-		vkFormat = VK_FORMAT_BC2_SRGB_BLOCK;
+	    vkFormat = vk::Format::eBc2SrgbBlock;
 		break;
 	case gli::format::FORMAT_RGBA_DXT3_SRGB_BLOCK16:
-		vkFormat = VK_FORMAT_BC2_SRGB_BLOCK;
+	    vkFormat = vk::Format::eBc2SrgbBlock;
 		break;
 	case gli::format::FORMAT_RGBA_DXT5_UNORM_BLOCK16:
-		vkFormat = VK_FORMAT_BC3_SRGB_BLOCK;
+	    vkFormat = vk::Format::eBc3SrgbBlock;
 		break;
 	case gli::format::FORMAT_RGBA_DXT5_SRGB_BLOCK16:
-		vkFormat = VK_FORMAT_BC3_SRGB_BLOCK;
+	    vkFormat = vk::Format::eBc3SrgbBlock;
 		break;
 	default:
 		VKL_EXIT_WITH_ERROR(std::string("Unable to load DDS image file [") + file + "] due to an unsupported format.");
@@ -1697,13 +1634,13 @@ VklImageInfo vklGetDdsImageLevelInfo(const char* file, uint32_t level)
 		// Furthermore, assume just UNORM, but could also be sRGB... who knows?!
 		// TODO: Test if sRGB looks better than UNORM!
 	case FOURCC_DXT1:
-		info.imageFormat= VK_FORMAT_BC1_RGBA_UNORM_BLOCK; // TODO: maybe VK_FORMAT_BC1_RGBA_SRGB_BLOCK?
+		info.imageFormat= vk::Format::eBc1RgbaUnormBlock; // TODO: maybe VK_FORMAT_BC1_RGBA_SRGB_BLOCK?
 		break;
 	case FOURCC_DXT3:
-		info.imageFormat = VK_FORMAT_BC2_UNORM_BLOCK; // TODO: maybe VK_FORMAT_BC2_RGBA_SRGB_BLOCK? And are we sure about BC2? Could it be that it is BC3 (whatever BC3 is)?
+		info.imageFormat = vk::Format::eBc2UnormBlock; // TODO: maybe VK_FORMAT_BC2_RGBA_SRGB_BLOCK? And are we sure about BC2? Could it be that it is BC3 (whatever BC3 is)?
 		break;
 	case FOURCC_DXT5:
-		info.imageFormat = VK_FORMAT_BC3_UNORM_BLOCK; // TODO: maybe VK_FORMAT_BC3_RGBA_SRGB_BLOCK? And are we sure about BC3? Could it be that it is BC5 (whatever BC5 is)?
+		info.imageFormat = vk::Format::eBc3UnormBlock; // TODO: maybe VK_FORMAT_BC3_RGBA_SRGB_BLOCK? And are we sure about BC3? Could it be that it is BC5 (whatever BC5 is)?
 		break;
 	default:
 		VKL_EXIT_WITH_ERROR("Unable to determine the DDS file's format (seems to be neither DXT1, nor DXT3, nor DXT5)");
@@ -1718,7 +1655,7 @@ VklImageInfo vklGetDdsImageInfo(const char* file)
 	return vklGetDdsImageLevelInfo(file, 0u);
 }
 
-VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level)
+vk::Buffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32_t face, uint32_t level)
 {
 	{ // Just checking if we are able to open the file:
 		std::ifstream infile(file);
@@ -1741,7 +1678,7 @@ VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32
 	
 	auto bufsize = gliTex.size(imageLevel);
 	auto buffer = gliTex.data(0, imageFace, imageLevel);
-	auto host_coherent_buffer = vklCreateHostCoherentBufferWithBackingMemory(bufsize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	auto host_coherent_buffer = vklCreateHostCoherentBufferWithBackingMemory(bufsize, vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst);
 	vklCopyDataIntoHostCoherentBuffer(host_coherent_buffer, buffer, bufsize);
 #else
 	unsigned char header[124];
@@ -1771,7 +1708,7 @@ VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32
 	uint32_t width = *reinterpret_cast<uint32_t*>(&(header[12]));
 	uint32_t linearSize = *reinterpret_cast<uint32_t*>(&(header[16]));
 	uint32_t fourCC = *reinterpret_cast<uint32_t*>(&(header[80]));
-	VkFormat format;
+	vk::Format format;
 
 	unsigned char* buffer;
 	unsigned int bufsize;
@@ -1790,24 +1727,24 @@ VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32
 		// Furthermore, assume just UNORM, but could also be sRGB... who knows?!
 		// TODO: Test if sRGB looks better than UNORM!
 	case FOURCC_DXT1:
-		format = VK_FORMAT_BC1_RGBA_UNORM_BLOCK; // TODO: maybe VK_FORMAT_BC1_RGBA_SRGB_BLOCK?
+		format = vk::Format::eBc1RgbaUnormBlock; // TODO: maybe VK_FORMAT_BC1_RGBA_SRGB_BLOCK?
 		break;
 	case FOURCC_DXT3:
-		format = VK_FORMAT_BC2_UNORM_BLOCK; // TODO: maybe VK_FORMAT_BC2_RGBA_SRGB_BLOCK? And are we sure about BC2? Could it be that it is BC3 (whatever BC3 is)?
+		format = vk::Format::eBc2UnormBlock; // TODO: maybe VK_FORMAT_BC2_RGBA_SRGB_BLOCK? And are we sure about BC2? Could it be that it is BC3 (whatever BC3 is)?
 		break;
 	case FOURCC_DXT5:
-		format = VK_FORMAT_BC3_UNORM_BLOCK; // TODO: maybe VK_FORMAT_BC3_RGBA_SRGB_BLOCK? And are we sure about BC3? Could it be that it is BC5 (whatever BC5 is)?
+		format = vk::Format::eBc3UnormBlock; // TODO: maybe VK_FORMAT_BC3_RGBA_SRGB_BLOCK? And are we sure about BC3? Could it be that it is BC5 (whatever BC5 is)?
 		break;
 	default:
 		delete[] buffer;
 		VKL_EXIT_WITH_ERROR("Unable to determine the DDS file's format (seems to be neither DXT1, nor DXT3, nor DXT5)");
 	}
 
-	unsigned int blockSize = (format == VK_FORMAT_BC1_RGBA_UNORM_BLOCK) ? 8 : 16;
+	unsigned int blockSize = (format == vk::Format::eBc1RgbaUnormBlock) ? 8 : 16;
 	uint32_t size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
 	assert(size == bufsize);
 
-	auto host_coherent_buffer = vklCreateHostCoherentBufferWithBackingMemory(bufsize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	auto host_coherent_buffer = vklCreateHostCoherentBufferWithBackingMemory(bufsize, vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst);
 	vklCopyDataIntoHostCoherentBuffer(host_coherent_buffer, buffer, bufsize);
 
 	delete[] buffer;
@@ -1815,12 +1752,12 @@ VkBuffer vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(const char* file, uint32
 	return host_coherent_buffer;
 }
 
-VkBuffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t level)
+vk::Buffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t level)
 {
 	return vklLoadDdsImageFaceLevelIntoHostCoherentBuffer(file, 0u, level);
 }
 
-VkBuffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file)
+vk::Buffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file)
 {
 	return vklLoadDdsImageLevelIntoHostCoherentBuffer(file, 0u);
 }
@@ -1973,8 +1910,8 @@ void vklEnablePipelineHotReloading(GLFWwindow* glfw_window, int glfw_key, int gl
 	}
 }
 
-void vklCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
+void vklCmdBindPipeline(vk::CommandBuffer commandBuffer, vk::PipelineBindPoint pipelineBindPoint, vk::Pipeline pipeline)
 {
 	pipeline = getGraphicsPipelineOrItsSurrogate(pipeline);
-	vkCmdBindPipeline(commandBuffer, pipelineBindPoint, pipeline);
+    commandBuffer.bindPipeline(pipelineBindPoint, pipeline);
 }
