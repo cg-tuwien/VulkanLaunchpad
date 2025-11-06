@@ -125,10 +125,10 @@ typedef unsigned long DWORD;
 #define FOURCC_DXT5	MAKEFOURCC('D', 'X', 'T', '5')
 
 // Debug utils messenger callback:
-VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsMessengerCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-	VkDebugUtilsMessageTypeFlagsEXT message_type,
-	const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugUtilsMessengerCallback(
+	vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
+	vk::DebugUtilsMessageTypeFlagsEXT message_type,
+	const vk::DebugUtilsMessengerCallbackDataEXT* callback_data,
 	void* user_data);
 
 std::string mSpaceForToString;
@@ -1505,25 +1505,25 @@ void vklDestroyDeviceLocalImageAndItsBackingMemory(vk::Image image)
 	}
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsMessengerCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-	VkDebugUtilsMessageTypeFlagsEXT message_type,
-	const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugUtilsMessengerCallback(
+	vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
+	vk::DebugUtilsMessageTypeFlagsEXT message_type,
+	const vk::DebugUtilsMessengerCallbackDataEXT* callback_data,
 	void* user_data)
 {
-	if ((message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0)
+	if (message_severity & vk::DebugUtilsMessageSeverityFlagBitsEXT::eError)
 	{
 		std::cout << "\nERROR:   messageIdNumber[" << callback_data->messageIdNumber << "], messageIdName[" << callback_data->pMessageIdName << "], message[" << callback_data->pMessage << "]" << std::endl;
 	}
-	else if ((message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) != 0)
+	else if (message_severity & vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
 	{
 		std::cout << "\nWARNING: messageIdNumber[" << callback_data->messageIdNumber << "], messageIdName[" << callback_data->pMessageIdName << "], message[" << callback_data->pMessage << "]" << std::endl;
 	}
-	else if ((message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) != 0)
+	else if (message_severity & vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo)
 	{
 		std::cout << "\nINFO:    messageIdNumber[" << callback_data->messageIdNumber << "], messageIdName[" << callback_data->pMessageIdName << "], message[" << callback_data->pMessage << "]" << std::endl;
 	}
-	else if ((message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) != 0)
+	else if (message_severity & vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose)
 	{
 		std::cout << "\nVERBOSE: messageIdNumber[" << callback_data->messageIdNumber << "], messageIdName[" << callback_data->pMessageIdName << "], message[" << callback_data->pMessage << "]" << std::endl;
 	}
