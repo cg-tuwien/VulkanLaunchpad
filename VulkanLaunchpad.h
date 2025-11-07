@@ -23,7 +23,7 @@
 #include <vma/vk_mem_alloc.h>
 #endif
 
-// Returns a string describing the given VkResult value
+// Returns a string describing the given vk::Result value
 #ifdef _WIN32
 #define VKL_PATH_SEPARATOR '\\'
 #else
@@ -40,20 +40,20 @@
 
 #define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR:   " << err << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); std::stringstream ss; ss << err; throw std::runtime_error(ss.str()); } while(false)
 
-// Evaluates a VkResult and displays its status:
+// Evaluates a vk::Result and displays its status:
 #define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < vk::Result::eSuccess) { std::cout << "ERROR:   Vulkan operation was not successful with error code " << vk::to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } else { std::cout << "CHECK:   Vulkan operation returned status code: " << vk::to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
 
-// Evaluates a VkResult and displays its status only if it represents an error:
+// Evaluates a vk::Result and displays its status only if it represents an error:
 #define VKL_CHECK_VULKAN_ERROR(result)  do { if ((result) < vk::Result::eSuccess) { std::cout << "ERROR:   Vulkan operation was not successful with error code " << vk::to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } } while(false)
 
-// Evaluates a VkResult and issues a return statement if it represents an error:
+// Evaluates a vk::Result and issues a return statement if it represents an error:
 #define VKL_RETURN_ON_ERROR(result)     do { if ((result) < vk::Result::eSuccess) { return; } } while(false)
 
 /*!
  *	A struct containing details about one specific image that is used in a swap chain
  */
 struct VklSwapchainImageDetails {
-    /*! The image's handle: */
+    /*! The image: */
     vk::Image imageHandle = VK_NULL_HANDLE;
 
     /*! The format of the image: */
@@ -77,7 +77,7 @@ struct VklSwapchainFramebufferComposition {
     /*!
      *	Details about the color attachment image of this framebuffer composition.
      *	The color image must always be set. That means, its imageHandle must
-     *	be a valid image handle.
+     *	be a valid image.
      */
     VklSwapchainImageDetails colorAttachmentImageDetails = {};
 
@@ -94,7 +94,7 @@ struct VklSwapchainFramebufferComposition {
  *	A struct describing the swapchain config in terms of used images
  */
 struct VklSwapchainConfig {
-    /*! The handle of the already created swapchain: */
+    /*! The already created swapchain: */
     vk::SwapchainKHR swapchainHandle = VK_NULL_HANDLE;
 
     /*! The resolution of each swap chain image (they all must match!): */
@@ -153,8 +153,8 @@ struct VklGraphicsPipelineConfig {
      *	vertex shaders by setting its .location member!
      *
      *	Use the .binding member to establish the link from the attribute description to the
-     *	input buffer, s.t., the .binding member of VkVertexInputBindingDescription and the
-     *	.binding member of VkVertexInputAttributeDescription match!
+     *	input buffer, s.t., the .binding member of vk::VertexInputBindingDescription and the
+     *	.binding member of vk::VertexInputAttributeDescription match!
      */
     std::vector<vk::VertexInputAttributeDescription> inputAttributeDescriptions;
 
@@ -170,15 +170,15 @@ struct VklGraphicsPipelineConfig {
      *	vector, specifying the correct binding-ID for the resource.
      *
      *	E.g., if there will be a uniform buffer bound to (location = 5), an entry must
-     *	be created with the following properties: .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+     *	be created with the following properties: .descriptorType = vk::DescriptorType::eUniformBuffer
      *	.binding        = 5
      */
     std::vector<vk::DescriptorSetLayoutBinding> descriptorLayout;
 
     /*! If set to true, the pipeline will be configured to have blending enabled, 
      *  where its blend factors are set as follows: 
-     *    srcColorBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA
-     *    dstColorBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+     *    srcColorBlendFactor=vk::BlendFactor::eSrcAlpha
+     *    dstColorBlendFactor=vk::BlendFactor::eOneMinusSrcAlpha
      */
     bool enableAlphaBlending = false;
 };
@@ -247,9 +247,9 @@ bool vklFrameworkInitialized();
  * back buffer, so that the application can render into it.
  *
  * The technical details of this function include:
- *  - waiting for a VkFence,
- *	- calling vkAcquireNextImageKHR,
- *	- and signaling a VkSemaphore which indicates when the image has become available.
+ *  - waiting for a vk::Fence,
+ *	- calling mDevice.acquireNextImageKHR,
+ *	- and signaling a vk::Semaphore which indicates when the image has become available.
  *
  *	@return	The elapsed time that this function waited, measured with calls to glfwGetTime
  */
@@ -259,8 +259,8 @@ double vklWaitForNextSwapchainImage();
  * This function waits until rendering has finished and afterwards, presents the rendered image on the surface.
  *
  * The technical details of this function include:
- *  - signaling a VkSemaphore after all rendering has finished,
- *	- and a call to vkPresentKHR.
+ *  - signaling a vk::Semaphore after all rendering has finished,
+ *	- and a call to mQueue.presentKHR.
  */
 void vklPresentCurrentSwapchainImage();
 
@@ -286,7 +286,7 @@ void vklStartRecordingCommands();
 void vklEndRecordingCommands();
 
 /*!
- * This function creates a new VkPipeline with some default settings and some settings from the given configuration struct.
+ * This function creates a new vk::Pipeline with some default settings and some settings from the given configuration struct.
  *
  * The settings taken from the configuration struct are the following:
  *  - ::vertexShaderPath ............. A path to a text file containing GLSL vertex shader code. If loadShadersFromMemory is true, then this is treated as the vertex shader code itself, not a path to it.
@@ -297,30 +297,30 @@ void vklEndRecordingCommands();
  *	- ::descriptorLayout ............. A list of resource descriptors. Can be used for, e.g., describing where shaders can find uniform buffers.
  *
  * Settings which are configured to default values internally are the following:
- *  - The topology of the input data is expected to be a triangle list, i.e., VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST.
+ *  - The topology of the input data is expected to be a triangle list, i.e., vk::PrimitiveTopology::eTriangleList.
  *	- The viewport is set to (0, 0) -- (width, height), where width and height refer to the swap chain's width and height.
  *	- Min- and max depth values are set to 0.0, and 1.0, respectively.
  *	- Scissors are set to (0, 0) -- (width, height), where width and height refer to the swap chain's width and height.
  *	- The line width is set to 1.0
- *	- The culling mode is set to cull back-facing primitives, i.e., VK_CULL_MODE_BACK_BIT.
- *	- The front faces are set to be given in counter-clockwise winding order, i.e., VK_FRONT_FACE_COUNTER_CLOCKWISE.
- *	- The multisample state is set to 1 sample, i.e., VK_SAMPLE_COUNT_1_BIT.
+ *	- The culling mode is set to cull back-facing primitives, i.e., vk::CullModeFlagBits::eBack.
+ *	- The front faces are set to be given in counter-clockwise winding order, i.e., vk::FrontFace::eCounterClockwise.
+ *	- The multisample state is set to 1 sample, i.e., vk::SampleCountFlagBits::e1.
  *	- Depth testing is enabled.
  *	- Depth writing is enabled.
- *	- Depth compare mode is set to VK_COMPARE_OP_LESS.
+ *	- Depth compare mode is set to vk::CompareOp::eLess.
  *	- Color blending is disabled.
  *	- The color write mask is configured to write all color channels and the alpha channel.
  *
  *	@param	config		Configuration struct containing the non-default settings described above.
  *	@param loadShadersFromMemory If true, then the shader paths of the config struct are interpreted as shader code.
- *	@return On success, a valid VkPipeline handle is returned.
+ *	@return On success, a valid vk::Pipeline is returned.
  */
 vk::Pipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig &config, bool loadShadersFromMemory = false);
 
 /*!
  *	Destroys a graphics pipeline that has been previously created with vklCreateGraphicsPipeline.
  *
- *	@param	pipeline	A valid handle to a graphics pipeline that has been created with vklCreateGraphicsPipeline.
+ *	@param	pipeline	A valid graphics pipeline that has been created with vklCreateGraphicsPipeline.
  *						The pipeline will be unusable after this function has returned. 
  */
 void vklDestroyGraphicsPipeline(vk::Pipeline pipeline);
@@ -331,49 +331,49 @@ void vklDestroyGraphicsPipeline(vk::Pipeline pipeline);
  *  @param bufferSize            The requested size of the memory in bytes.
  *  @param memoryRequirements    The requested requirements for the memory.
  *  @param memoryPropertyFlags   The memory properties that the allocated buffer must support. 
- *                               For, e.g., host-coherent memory, pass VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
- *                               For, e.g., device-local memory, pass VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+ *                               For, e.g., host-coherent memory, pass vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+ *                               For, e.g., device-local memory, pass vk::MemoryPropertyFlagBits::eDeviceLocal
  */
 vk::DeviceMemory vklAllocateMemoryForGivenRequirements(vk::DeviceSize bufferSize, vk::MemoryRequirements memoryRequirements, vk::MemoryPropertyFlags memoryPropertyFlags);
 
 /*!
- *	Creates a new buffer (VkBuffer) and also allocates new memory on the device (VkDeviceMemory) to back the
+ *	Creates a new buffer (vk::Buffer) and also allocates new memory on the device (vk::DeviceMemory) to back the
  *	buffer's size requirements. The memory will always be allocated from a region of so called "host coherent"
  *	memory, which is a region that is also accessible from the CPU, so that the CPU can write data into it.
- *	Internally, this is indicated with the flags VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.
+ *	Internally, this is indicated with the flags vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
  *
  *	@param buffer_size	The requested size of the buffer in bytes.
  *	@param buffer_usage	Requested buffer usage flags.
  *
- *	@return A handle to a newly created buffer with backing memory.
+ *	@return A newly created buffer with backing memory.
  */
 vk::Buffer vklCreateHostCoherentBufferWithBackingMemory(vk::DeviceSize buffer_size, vk::BufferUsageFlags buffer_usage);
 
 /*!
- *	Creates a new buffer (VkBuffer) and also allocates new memory on the device (VkDeviceMemory) to back the
+ *	Creates a new buffer (vk::Buffer) and also allocates new memory on the device (vk::DeviceMemory) to back the
  *	buffer's size requirements. The memory will always be allocated from a region of so called "device-local"
  *	memory, which is a region that is not accessible from the CPU, which is faster to access and transfer on the device.
- *	Internally, this is indicated with the flag VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT.
+ *	Internally, this is indicated with the flag vk::MemoryPropertyFlagBits::eDeviceLocal.
  *
  *	@param buffer_size	The requested size of the buffer in bytes.
  *	@param buffer_usage	Requested buffer usage flags.
  *
- *	@return A handle to a newly created buffer with backing memory.
+ *	@return A newly created buffer with backing memory.
  */
 vk::Buffer vklCreateDeviceLocalBufferWithBackingMemory(vk::DeviceSize buffer_size, vk::BufferUsageFlags buffer_usage);
 
 /*!
- *	Frees the memory (VkDeviceMemory) and destroys the buffer (VkBuffer) which has previously been created
+ *	Frees the memory (vk::DeviceMemory) and destroys the buffer (vk::Buffer) which has previously been created
  *	using vklCreateHostCoherentBufferWithBackingMemory.
- *	@param	buffer		The buffer which shall be destroyed. The assigned VkDeviceMemory handle is tracked
+ *	@param	buffer		The buffer which shall be destroyed. The assigned vk::DeviceMemory is tracked
  *						internally and will be freed before the buffer is destroyed.
  */
 void vklDestroyHostCoherentBufferAndItsBackingMemory(vk::Buffer buffer);
 
 /*!
- *	Frees the memory (VkDeviceMemory) and destroys the buffer (VkBuffer) which has previously been created
+ *	Frees the memory (vk::DeviceMemory) and destroys the buffer (vk::Buffer) which has previously been created
  *	using vklCreateDeviceBufferWithBackingMemory.
- *	@param	buffer		The buffer which shall be destroyed. The assigned VkDeviceMemory handle is tracked
+ *	@param	buffer		The buffer which shall be destroyed. The assigned vk::DeviceMemory is tracked
  *						internally and will be freed before the buffer is destroyed.
  */
 void vklDestroyDeviceLocalBufferAndItsBackingMemory(vk::Buffer buffer);
@@ -399,60 +399,60 @@ void vklCopyDataIntoHostCoherentBuffer(vk::Buffer buffer, size_t buffer_offset_i
                                        size_t data_size_in_bytes);
 
 /*!
- * Create a new host coherent buffer on the GPU, upload the supplied data from the vector, and return the buffer handle.
+ * Create a new host coherent buffer on the GPU, upload the supplied data from the vector, and return the buffer.
  *
- * Be sure to free the allocated memory by calling `vklDestroyHostCoherentBufferAndItsBackingMemory(...)` on the returned handle once the
+ * Be sure to free the allocated memory by calling `vklDestroyHostCoherentBufferAndItsBackingMemory(...)` on the returned buffer once the
  * buffer is no longer required.
  *
  * @param data Pointer to the data to upload to the GPU.
  * @param size Size of the data in bytes.
  * @param usageFlags Usage flags to use when creating the buffer.
- * @return The handle of the newly generated buffer.
+ * @return The newly generated buffer.
  */
 vk::Buffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, vk::BufferUsageFlags usageFlags);
 
 /*!
- *	Binds the given descriptor set for the given graphics pipeline (internally using vkCmdBindDescriptorSets).
- *	To be more precise: The VkPipelineLayout of the given VkPipeline is retrieved and the descriptor is bound for that.
+ *	Binds the given descriptor set for the given graphics pipeline (internally using bindDescriptorSets).
+ *	To be more precise: The vk::PipelineLayout of the given vk::Pipeline is retrieved and the descriptor is bound for that.
  *
- *	@param	descriptor_set		This handle must represent a valid descriptor set.
- *								It will be bound to the VK_PIPELINE_BIND_POINT_GRAPHICS binding point.
- *	@param	pipeline			This handle must represent a valid graphics pipeline that has been created with 
+ *	@param	descriptor_set		This must represent a valid descriptor set.
+ *								It will be bound to the vk::PipelineBindPoint::eGraphics binding point.
+ *	@param	pipeline			This must represent a valid graphics pipeline that has been created with
  *								vklCreateGraphicsPipeline previously. Internally, its pipeline layout will be used.
  */
 void vklBindDescriptorSetToPipeline(vk::DescriptorSet descriptor_set, vk::Pipeline pipeline);
 
 /*!
- *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
- *	Also creates backing memory (VkDeviceMemory) for that image in device local memory (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).
+ *	Creates a 2D image (vk::Image) of the given size, in the given format, and for the given usage(s) on the device.
+ *	Also creates backing memory (vk::DeviceMemory) for that image in device local memory (vk::MemoryPropertyFlagBits::eDeviceLocal).
  *
  *	@param	physical_device		The physical device where to create image and memory.
- *	@param	device				The device handle to be used for image and memory creation.
+ *	@param	device				The device to be used for image and memory creation.
  *	@param	width				Image width.
  *	@param	height				Image height.
  *	@param	format				Image format (i.e., data format of each of the image's fragments)
  *	@param	usage_flags			Usage(s) which the newly created image can be used for.
  *
- *	@return A handle to a newly created image with backing memory.
+ *	@return A newly created image with backing memory.
  */
 vk::Image
 vklCreateDeviceLocalImageWithBackingMemory(vk::PhysicalDevice physical_device, vk::Device device, uint32_t width, uint32_t height,
                                            vk::Format format, vk::ImageUsageFlags usage_flags);
 
 /*!
- *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
- *	Also creates backing memory (VkDeviceMemory) for that image in device local memory (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).
+ *	Creates a 2D image (vk::Image) of the given size, in the given format, and for the given usage(s) on the device.
+ *	Also creates backing memory (vk::DeviceMemory) for that image in device local memory (vk::MemoryPropertyFlagBits::eDeviceLocal).
  *
  *	@param	physical_device		The physical device where to create image and memory.
- *	@param	device				The device handle to be used for image and memory creation.
+ *	@param	device				The device to be used for image and memory creation.
  *	@param	width				Image width.
  *	@param	height				Image height.
  *	@param	format				Image format (i.e., data format of each of the image's fragments)
  *	@param	usage_flags			Usage(s) which the newly created image can be used for.
  *	@param	array_layers		How many layers the image shall be created with
- *	@param	flags				Additional VkImageCreateFlagBits flags, describing additional parameters of the image.
+ *	@param	flags				Additional vk::ImageCreateFlags flags, describing additional parameters of the image.
  *
- *	@return A handle to a newly created image with backing memory.
+ *	@return A newly created image with backing memory.
  */
 vk::Image
 vklCreateDeviceLocalImageWithBackingMemory(vk::PhysicalDevice physical_device, vk::Device device, uint32_t width, uint32_t height,
@@ -460,51 +460,51 @@ vklCreateDeviceLocalImageWithBackingMemory(vk::PhysicalDevice physical_device, v
                                            vk::ImageCreateFlags flags);
 
 /*!
- *	Frees the memory (VkDeviceMemory) and destroys the image (VkImage) which has previously been created
+ *	Frees the memory (vk::DeviceMemory) and destroys the image (vk::Image) which has previously been created
  *	using vklCreateDeviceLocalImageWithBackingMemory.
- *	@param	image		The image which shall be destroyed. The assigned VkDeviceMemory handle is tracked
+ *	@param	image		The image which shall be destroyed. The assigned vk::DeviceMemory is tracked
  *						internally and will be freed before the image is destroyed.
  */
 void vklDestroyDeviceLocalImageAndItsBackingMemory(vk::Image image);
 
 /*!
- *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
- *	Also creates backing memory (VkDeviceMemory) for that image in device local memory (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).
+ *	Creates a 2D image (vk::Image) of the given size, in the given format, and for the given usage(s) on the device.
+ *	Also creates backing memory (vk::DeviceMemory) for that image in device local memory (vk::MemoryPropertyFlagBits::eDeviceLocal).
  *
  *	@param	width				Image width.
  *	@param	height				Image height.
  *	@param	format				Image format (i.e., data format of each of the image's fragments)
  *	@param	usage_flags			Usage(s) which the newly created image can be used for.
  *
- *	@return A handle to a newly created image with backing memory.
+ *	@return A newly created image with backing memory.
  */
 vk::Image
 vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage_flags);
 
 /*!
- *	Creates a 2D image (VkImage) of the given size, in the given format, and for the given usage(s) on the device.
- *	Also creates backing memory (VkDeviceMemory) for that image in device local memory (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).
+ *	Creates a 2D image (vk::Image) of the given size, in the given format, and for the given usage(s) on the device.
+ *	Also creates backing memory (vk::DeviceMemory) for that image in device local memory (vk::MemoryPropertyFlagBits::eDeviceLocal).
  *
  *	@param	width				Image width.
  *	@param	height				Image height.
  *	@param	format				Image format (i.e., data format of each of the image's fragments)
  *	@param	usage_flags			Usage(s) which the newly created image can be used for.
  *	@param	array_layers		How many layers the image shall be created with
- *	@param	flags				Additional VkImageCreateFlagBits flags, describing additional parameters of the image.
+ *	@param	flags				Additional vk::ImageCreateFlags flags, describing additional parameters of the image.
  *
- *	@return A handle to a newly created image with backing memory.
+ *	@return A newly created image with backing memory.
  */
 vk::Image vklCreateDeviceLocalImageWithBackingMemory(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage_flags,
                                                    uint32_t array_layers, vk::ImageCreateFlags flags);
 
 /*!
- *	Gets the VkPipelineLayout for the given VkPipeline, given that the
- *	VkPipeline has been generated with vklCreateGraphicsPipeline previously.
+ *	Gets the vk::PipelineLayout for the given vk::Pipeline, given that the
+ *	vk::Pipeline has been generated with vklCreateGraphicsPipeline previously.
  *	The pipeline layout of pipelines created with vklCreateGraphicsPipeline
  *	are stored internally and can be retrieved using this function.
  *	
- *	@param	pipeline	A valid VkPipeline handle which has been created with vklCreateGraphicsPipeline
- *	@return	The VkPipelineLayout handle that was used to create the given pipeline.
+ *	@param	pipeline	A valid vk::Pipeline which has been created with vklCreateGraphicsPipeline
+ *	@return	The vk::PipelineLayout that was used to create the given pipeline.
  */
 vk::PipelineLayout vklGetLayoutForPipeline(vk::Pipeline pipeline);
 
@@ -606,7 +606,7 @@ VklImageInfo vklGetDdsImageLevelInfo(const char* file, uint32_t level);
 
 /*!
  *	Loads a DDS image from a file directly into a host-coherent buffer.
- *	To cleanup, pass the returned buffer handle to vklDestroyHostCoherentBufferAndItsBackingMemory!
+ *	To cleanup, pass the returned buffer to vklDestroyHostCoherentBufferAndItsBackingMemory!
  *	This is equivalent to calling vklLoadDdsImageFaceLevelIntoHostCoherentBuffer with face-id = 0, and mipmap level = 0.
  *
  *	@param	file	Path to a DDS image file
@@ -617,7 +617,7 @@ vk::Buffer vklLoadDdsImageIntoHostCoherentBuffer(const char* file);
 /*!
  *	Loads one particular mipmap level of a DDS image from a file directly into a host-coherent buffer.
  *	This is equivalent to calling vklLoadDdsImageFaceLevelIntoHostCoherentBuffer with face-id = 0 and the respective level.
- *	To cleanup, pass the returned buffer handle to vklDestroyHostCoherentBufferAndItsBackingMemory!
+ *	To cleanup, pass the returned buffer to vklDestroyHostCoherentBufferAndItsBackingMemory!
  *
  *	@param	file	Path to a DDS image file
  *	@param	level	The mipmap level which to load into the buffer (i.e., this one and only this one)
@@ -627,7 +627,7 @@ vk::Buffer vklLoadDdsImageLevelIntoHostCoherentBuffer(const char* file, uint32_t
 
 /*!
  *	Loads one particular mipmap level of a particular face of a DDS image from a file directly into a host-coherent buffer.
- *	To cleanup, pass the returned buffer handle to vklDestroyHostCoherentBufferAndItsBackingMemory!
+ *	To cleanup, pass the returned buffer to vklDestroyHostCoherentBufferAndItsBackingMemory!
  *
  *	@param	file	Path to a DDS image file
  *	@param	face	The face-id which to load into the buffer (i.e., this one and only this one)
@@ -664,31 +664,31 @@ void vklHotReloadPipelines();
 /*!
  *  Enables graphics pipeline hot-reloading to be triggered by users through a defined keyboard shortcut.
  *  Pipeline hot-reloading can be super helpful during shader development. Pipelines containing the updated
- *  shader code can be swapped under the hood during the application is running, without the need to restart 
+ *  shader code can be swapped under the hood while the application is running, without the need to restart
  *  the application.
  *  
  *  Preconditions in code to enable graphics pipeline hot-reloading:
  *   - Either call vklEnablePipelineHotReloading once at initialization time, or manually invoke vklHotReloadPipelines!
- *   - IMPORTANT: Use vklCmdBindPipeline(VkCommandBuffer, VkPipelineBindPoint, VkPipeline) instead of 
- *                the Vulkan API's vkCmdBindPipeline(VkCommandBuffer, VkPipelineBindPoint, VkPipeline)!
+ *   - IMPORTANT: Use vklCmdBindPipeline(vk::CommandBuffer, vk::PipelineBindPoint, vk::Pipeline) instead of
+ *                the Vulkan API's vk::CommandBuffer::bindPipeline(vk::PipelineBindPoint, vk::Pipeline)!
  * 
  *  @param  glfw_window             GLFW window, which is required to establish a key callback
  *  @param  glfw_key                Desired key which shall trigger pipelines to be hot-reloaded, 
  *                                  as GLFW key code (e.g. GLFW_KEY_F5, or GLFW_KEY_R)
  *  @param  glfw_modifier_keys      If desired, modifier keys can be added to the keyboard shortcut through this parameter.
  *                                  Useful values are: GLFW_MOD_SHIFT, GLFW_MOD_CONTROL, or GLFW_MOD_ALT
- *                                  A cobination of these is possible by OR-ing these values together.
+ *                                  A combination of these is possible by OR-ing these values together.
  *                                  If no modifier is desired, just pass 0 (default value).
  */
 void vklEnablePipelineHotReloading(GLFWwindow* glfw_window, int glfw_key, int glfw_modifier_keys = 0);
 
 /*!
- *  Replacement function for the Vulkan API's vkCmdBindPipeline function, adding support for pipeline hot-reloading,
- *  by using the most up-to-date version of possibly hot-reloaded pipeline handles under the hood.
+ *  Replacement function for the Vulkan API's vk::CommandBuffer::bindPipeline function, adding support for pipeline hot-reloading,
+ *  by using the most up-to-date version of possibly hot-reloaded pipelines under the hood.
  * 
- *  Other than that, it is just a 1:1 proxy for vkCmdBindPipeline. All parameters are the same.
+ *  Other than that, it is just a 1:1 proxy for vk::CommandBuffer::bindPipeline. All parameters are the same.
  *  @param  commandBuffer           the command buffer that the pipeline will be bound to.
- *  @param  pipelineBindPoint       a VkPipelineBindPoint value specifying to which bind point the pipeline is bound. 
+ *  @param  pipelineBindPoint       a vk::PipelineBindPoint value specifying to which bind point the pipeline is bound.
  *  @param  pipeline                the pipeline to be bound.
  *                                  
  *  More information can be found in the Vulkan specification: https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdBindPipeline.html

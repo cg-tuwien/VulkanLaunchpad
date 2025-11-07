@@ -449,7 +449,7 @@ vk::Pipeline vklCreateGraphicsPipeline(const VklGraphicsPipelineConfig& config, 
 	if (VK_NULL_HANDLE == graphicsPipelineHandle) {
         VKL_EXIT_WITH_ERROR("Failed to create graphics pipeline. Check console output if there were any problems with shader compilation!");
 	}
-	// Store for hot reloading, but only those handles, which the user requested explicitly (hence the split of createGraphicsPipelineInternal and vklCreateGraphicsPipeline):
+	// Store for hot reloading, but only those, which the user requested explicitly (hence the split of createGraphicsPipelineInternal and vklCreateGraphicsPipeline):
 	mUserKnownPipelines[graphicsPipelineHandle] = std::make_tuple(config, std::make_pair(std::string(config.vertexShaderPathAndEntrypoint.first), std::string(config.vertexShaderPathAndEntrypoint.second)), std::make_pair(std::string(config.fragmentShaderPathAndEntrypoint.first), std::string(config.fragmentShaderPathAndEntrypoint.second)), loadShadersFromMemoryInstead);
 	return graphicsPipelineHandle;
 }
@@ -496,7 +496,7 @@ void vklDestroyGraphicsPipeline(vk::Pipeline pipeline)
 	// Destroy the latest surrogate:
 	destroyGraphicsPipelineInternal(getGraphicsPipelineOrItsSurrogate(pipeline));
 
-	// Remove the ORIGINAL pipeline handle from known pipelines:
+	// Remove the ORIGINAL pipeline from known pipelines:
 	auto it = mUserKnownPipelines.find(pipeline);
 	if (it != mUserKnownPipelines.end()) {
 		mUserKnownPipelines.erase(it);
@@ -601,7 +601,7 @@ vk::Buffer vklCreateHostCoherentBufferWithBackingMemory(vk::DeviceSize buffer_si
 	// Allocate the memory (we want host-coherent memory):
     auto memory = vklAllocateUniqueMemoryForGivenRequirements(buffer_size, mDevice.getBufferMemoryRequirements(buffer), vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     
-	// Bind the buffer handle to the memory:
+	// Bind the buffer to the memory:
 	mDevice.bindBufferMemory(buffer, memory.get(), 0);
 
 	// Remember the assignment:
@@ -639,7 +639,7 @@ vk::Buffer vklCreateDeviceLocalBufferWithBackingMemory(vk::DeviceSize buffer_siz
 	// Allocate the memory (we want device-local memory):
 	auto memory = vklAllocateUniqueMemoryForGivenRequirements(buffer_size, mDevice.getBufferMemoryRequirements(buffer), vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-	// Bind the buffer handle to the memory:
+	// Bind the buffer to the memory:
 	mDevice.bindBufferMemory(buffer, memory.get(), 0);
 
 	// Remember the assignment:
@@ -654,7 +654,7 @@ void vklDestroyHostCoherentBufferAndItsBackingMemory(vk::Buffer buffer)
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
 	}
 	if (vk::Buffer{} == buffer) {
-		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklDestroyHostCoherentBufferAndItsBackingMemory(...)");
+		VKL_EXIT_WITH_ERROR("Invalid buffer passed to vklDestroyHostCoherentBufferAndItsBackingMemory(...)");
 	}
 
 	bool resourceDestroyed = false;
@@ -683,7 +683,7 @@ void vklDestroyDeviceLocalBufferAndItsBackingMemory(vk::Buffer buffer)
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
 	}
 	if (vk::Buffer{} == buffer) {
-		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklDestroyDeviceLocalBufferAndItsBackingMemory(...)");
+		VKL_EXIT_WITH_ERROR("Invalid buffer passed to vklDestroyDeviceLocalBufferAndItsBackingMemory(...)");
 	}
 
 	bool resourceDestroyed = false;
@@ -717,7 +717,7 @@ void vklCopyDataIntoHostCoherentBuffer(vk::Buffer buffer, size_t buffer_offset_i
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to invoke vklInitFramework beforehand!");
 	}
 	if (vk::Buffer{} == buffer) {
-		VKL_EXIT_WITH_ERROR("Invalid buffer handle passed to vklCopyDataIntoHostCoherentBuffer(...)");
+		VKL_EXIT_WITH_ERROR("Invalid buffer passed to vklCopyDataIntoHostCoherentBuffer(...)");
 	}
 
 	auto search = mHostCoherentBuffersWithBackingMemory.find(buffer);
@@ -748,12 +748,12 @@ void vklCopyDataIntoHostCoherentBuffer(vk::Buffer buffer, size_t buffer_offset_i
 }
 
 /*!
- * Create a new host coherent buffer on the GPU, upload the supplied data from the vector, and return the buffer handle.
+ * Create a new host coherent buffer on the GPU, upload the supplied data from the vector, and return the buffer.
  *
  * @param data Pointer to the data to upload to the GPU.
  * @param size Size of the data in bytes.
- * @param usageFlags Usage flags to use when createing the buffer.
- * @return The handle of the newly generated buffer.
+ * @param usageFlags Usage flags to use when creating the buffer.
+ * @return The newly generated buffer.
  */
 vk::Buffer vklCreateHostCoherentBufferAndUploadData(const void* data, size_t size, vk::BufferUsageFlags usageFlags) {
     vk::Buffer result;
@@ -786,7 +786,7 @@ void vklBindDescriptorSetToPipeline(vk::DescriptorSet descriptor_set, vk::Pipeli
 
 	auto searchPl = mPipelineLayouts.find(pipeline);
 	if (mPipelineLayouts.end() == searchPl) {
-		VKL_EXIT_WITH_ERROR("Couldn't find the VkPipeline passed to vklBindDescriptorSetToPipeline. Is it a valid handle and has it been created with vklCreateGraphicsPipeline(...)?");
+		VKL_EXIT_WITH_ERROR("Couldn't find the VkPipeline passed to vklBindDescriptorSetToPipeline. Is it valid and has it been created with vklCreateGraphicsPipeline(...)?");
 	}
 
 	auto pipeLayout = std::get<vk::UniquePipelineLayout>(searchPl->second).get();
@@ -804,7 +804,7 @@ vk::PipelineLayout vklGetLayoutForPipeline(vk::Pipeline pipeline)
 
 	auto searchPl = mPipelineLayouts.find(pipeline);
 	if (mPipelineLayouts.end() == searchPl) {
-		VKL_EXIT_WITH_ERROR("Couldn't find the VkPipeline passed to vklBindDescriptorSetToPipeline. Is it a valid handle and has it been created with vklCreateGraphicsPipeline(...)?");
+		VKL_EXIT_WITH_ERROR("Couldn't find the VkPipeline passed to vklBindDescriptorSetToPipeline. Is it valid and has it been created with vklCreateGraphicsPipeline(...)?");
 	}
 	return std::get<vk::UniquePipelineLayout>(searchPl->second).get();
 }
@@ -909,16 +909,16 @@ bool vklInitFramework(vk::Instance vk_instance, vk::SurfaceKHR vk_surface, vk::P
 
 		// Sanity check:
 		if ((mSwapchainConfig.swapchainImages[0].colorAttachmentImageDetails.imageHandle != VK_NULL_HANDLE) != (mSwapchainConfig.swapchainImages[i].colorAttachmentImageDetails.imageHandle != VK_NULL_HANDLE)) {
-			VKL_EXIT_WITH_ERROR(std::string("If one VklSwapchainFramebufferComposition entry has a valid color image handle set, all other VklSwapchainFramebufferComposition entries must have valid color image handles set, too. However, swapchainImages[0] has a ")
+			VKL_EXIT_WITH_ERROR(std::string("If one VklSwapchainFramebufferComposition entry has a valid color image set, all other VklSwapchainFramebufferComposition entries must have valid color images set, too. However, swapchainImages[0] has a ")
                                 + ((mSwapchainConfig.swapchainImages[0].colorAttachmentImageDetails.imageHandle != VK_NULL_HANDLE) ? "valid" : "invalid")
-                                + " handle, while swapchainImages[" + std::to_string(i) + "] has a "
-                                + ((mSwapchainConfig.swapchainImages[i].colorAttachmentImageDetails.imageHandle != VK_NULL_HANDLE) ? "valid handle" : "invalid handle"));
+                                + " image, while swapchainImages[" + std::to_string(i) + "] has a "
+                                + ((mSwapchainConfig.swapchainImages[i].colorAttachmentImageDetails.imageHandle != VK_NULL_HANDLE) ? "valid image" : "invalid image"));
 		}
 		if ((mSwapchainConfig.swapchainImages[0].depthAttachmentImageDetails.imageHandle != VK_NULL_HANDLE) != (mSwapchainConfig.swapchainImages[i].depthAttachmentImageDetails.imageHandle != VK_NULL_HANDLE)) {
-			VKL_EXIT_WITH_ERROR(std::string("If one VklSwapchainFramebufferComposition entry has a valid depth image handle set, all other VklSwapchainFramebufferComposition entries must have valid depth image handles set, too. However, swapchainImages[0] has a ")
+			VKL_EXIT_WITH_ERROR(std::string("If one VklSwapchainFramebufferComposition entry has a valid depth image set, all other VklSwapchainFramebufferComposition entries must have valid depth image set, too. However, swapchainImages[0] has a ")
                                 + ((mSwapchainConfig.swapchainImages[0].depthAttachmentImageDetails.imageHandle != VK_NULL_HANDLE) ? "valid" : "invalid")
-                                + " handle, while swapchainImages[" + std::to_string(i) + "]  has a "
-                                + ((mSwapchainConfig.swapchainImages[i].depthAttachmentImageDetails.imageHandle != VK_NULL_HANDLE) ? "valid handle" : "invalid handle"));
+                                + " image, while swapchainImages[" + std::to_string(i) + "]  has a "
+                                + ((mSwapchainConfig.swapchainImages[i].depthAttachmentImageDetails.imageHandle != VK_NULL_HANDLE) ? "valid image" : "invalid image"));
 		}
 		if (attachments_0.size() != attachments_i.size()) {
 			VKL_EXIT_WITH_ERROR("attachments_0.size() != attachments_i.size()");
@@ -1482,7 +1482,7 @@ void vklDestroyDeviceLocalImageAndItsBackingMemory(vk::Image image)
 		VKL_EXIT_WITH_ERROR("Framework not initialized. Ensure to not invoke vklDestroyFramework beforehand!");
 	}
 	if (vk::Image{} == image) {
-		VKL_EXIT_WITH_ERROR("Invalid image handle passed to vklDestroyImageAndItsBackingMemory(...)");
+		VKL_EXIT_WITH_ERROR("Invalid image passed to vklDestroyImageAndItsBackingMemory(...)");
 	}
 
 	bool resourceDestroyed = false;
@@ -1885,7 +1885,7 @@ void vklHotReloadPipelines()
 		auto destroyHandle = getGraphicsPipelineOrItsSurrogate(originalHandle);
 		mPipelineGraveyard.push_back(std::make_tuple(mFrameId + CONCURRENT_FRAMES, destroyHandle));
 
-		// And we have a new surrogate for the original handle:
+		// And we have a new surrogate for the original:
 		mPipelineSurrogates[originalHandle] = newHandle;
 	}
 }
