@@ -150,7 +150,7 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromSp
 	return std::make_tuple(shaderModule, shaderStageCreateInfo);
 }
 
-std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(const std::pair<std::string, std::string>& shaderCodeAndEntryPoint, const std::string& shaderName, const vk::ShaderStageFlagBits shaderStage)
+std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(const std::pair<const char*, const char*>& shaderCodeAndEntryPoint, const std::string& shaderName, const vk::ShaderStageFlagBits shaderStage)
 {
     std::string_view shaderType = shaderStage == vk::ShaderStageFlagBits::eFragment ? "fragment" : "vertex";
 
@@ -203,7 +203,7 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderF
         slangModule = session->loadModuleFromSourceString(
             shaderName.c_str(),
             nullptr,
-            shaderCodeAndEntryPoint.first.c_str(),
+            shaderCodeAndEntryPoint.first,
             diagnosticsBlob.writeRef()
         );
         if (diagnosticsBlob != nullptr) {
@@ -214,7 +214,7 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderF
     }
 
     Slang::ComPtr<slang::IEntryPoint> entryPoint;
-    slangModule->findEntryPointByName(shaderCodeAndEntryPoint.second.c_str(), entryPoint.writeRef());
+    slangModule->findEntryPointByName(shaderCodeAndEntryPoint.second, entryPoint.writeRef());
     if (!entryPoint) {
         std::cout << "\nERROR:   Failed to load shader[" << shaderName << "]"
                   << "\n         Error getting entry point \"" << shaderCodeAndEntryPoint.second << "\""
@@ -284,7 +284,7 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderF
         static_cast<const uint32_t*>(spirvCode->getBufferPointer()),
         spirvCode->getBufferSize(),
         shaderStage,
-        shaderCodeAndEntryPoint.second.c_str()
+        shaderCodeAndEntryPoint.second
     );
 }
 
@@ -323,20 +323,20 @@ vk::Pipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& con
         return VK_NULL_HANDLE;
     }
 
-    auto vertexShaderPathAndEntryPoint = std::make_pair(std::string(config.vertexShaderPathAndEntrypoint.first), std::string(config.vertexShaderPathAndEntrypoint.second));
-    auto fragmentShaderPathAndEntryPoint = std::make_pair(std::string(config.fragmentShaderPathAndEntrypoint.first), std::string(config.fragmentShaderPathAndEntrypoint.second));
+    std::string vertexShaderPath = config.vertexShaderPathAndEntrypoint.first;
+    std::string fragmentShaderPath = config.fragmentShaderPathAndEntrypoint.first;
 
     std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> vertTpl;
     std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> fragTpl;
 
     if (loadShadersFromMemoryInstead) {
-        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(vertexShaderPathAndEntryPoint, "vertex_shader_from_memory", vk::ShaderStageFlagBits::eVertex);
-        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(fragmentShaderPathAndEntryPoint, "fragment_shader_from_memory", vk::ShaderStageFlagBits::eFragment);
+        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(config.vertexShaderPathAndEntrypoint, "vertex_shader_from_memory", vk::ShaderStageFlagBits::eVertex);
+        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(config.fragmentShaderPathAndEntrypoint, "fragment_shader_from_memory", vk::ShaderStageFlagBits::eFragment);
     } else {
-        std::string vertexShaderCode = loadSlangShaderCodeFromFile(vertexShaderPathAndEntryPoint.first);
-        std::string fragmentShaderCode = loadSlangShaderCodeFromFile(fragmentShaderPathAndEntryPoint.first);
-        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({vertexShaderCode, vertexShaderPathAndEntryPoint.second}, vertexShaderPathAndEntryPoint.first, vk::ShaderStageFlagBits::eVertex);
-        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({fragmentShaderCode, fragmentShaderPathAndEntryPoint.second}, fragmentShaderPathAndEntryPoint.first, vk::ShaderStageFlagBits::eFragment);
+        std::string vertexShaderCode = loadSlangShaderCodeFromFile(vertexShaderPath);
+        std::string fragmentShaderCode = loadSlangShaderCodeFromFile(fragmentShaderPath);
+        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({vertexShaderCode.c_str(), config.vertexShaderPathAndEntrypoint.second}, vertexShaderPath, vk::ShaderStageFlagBits::eVertex);
+        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({fragmentShaderCode.c_str(), config.fragmentShaderPathAndEntrypoint.second}, fragmentShaderPath, vk::ShaderStageFlagBits::eFragment);
     }
 
     if (!std::get<vk::ShaderModule>(vertTpl) || !std::get<vk::ShaderModule>(fragTpl)) {
