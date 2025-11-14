@@ -13,6 +13,7 @@
 #include <map>
 #include <deque>
 #include <variant>
+#include <filesystem>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tinyobjloader/tiny_obj_loader.h>
 
@@ -150,7 +151,7 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromSp
 	return std::make_tuple(shaderModule, shaderStageCreateInfo);
 }
 
-std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(const std::pair<const char*, const char*>& shaderCodeAndEntryPoint, const std::string& shaderName, const vk::ShaderStageFlagBits shaderStage)
+std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(const std::pair<const char*, const char*>& shaderCodeAndEntryPoint, const std::string& shaderName, const vk::ShaderStageFlagBits shaderStage, const std::vector<std::string>& searchPaths)
 {
     std::string_view shaderType = shaderStage == vk::ShaderStageFlagBits::eFragment ? "fragment" : "vertex";
 
@@ -186,10 +187,17 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderF
         compilerOptionMatrixLayout
     };
 
+    std::vector<const char*> cStringSearchPaths(searchPaths.size());
+    for (size_t i = 0; i < searchPaths.size(); ++i) {
+        cStringSearchPaths[i] = searchPaths[i].c_str();
+    }
+
     sessionDesc.targets = &targetDesc;
     sessionDesc.targetCount = 1;
     sessionDesc.compilerOptionEntries = compilerOptions.data();
     sessionDesc.compilerOptionEntryCount = compilerOptions.size();
+    sessionDesc.searchPaths = cStringSearchPaths.data();
+    sessionDesc.searchPathCount = static_cast<SlangInt>(cStringSearchPaths.size());
 
     Slang::ComPtr<slang::ISession> session;
     auto slangSessionResult = slangGlobalSession->createSession(sessionDesc, session.writeRef());
@@ -288,12 +296,11 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderF
     );
 }
 
-std::string loadSlangShaderCodeFromFile(const std::string& shader_filename)
+std::string loadSlangShaderCodeFromFile(const std::filesystem::path& shader_filename)
 {
-    std::string path = {};
+    std::filesystem::path path = {};
 
-    std::ifstream infile(shader_filename);
-    if (infile.good()) {
+    if (std::filesystem::exists(shader_filename)) {
         path = shader_filename;
         VKL_LOG("Loading shader file from path[" << path << "]...");
     }
@@ -323,20 +330,25 @@ vk::Pipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& con
         return VK_NULL_HANDLE;
     }
 
-    std::string vertexShaderPath = config.vertexShaderPathAndEntrypoint.first;
-    std::string fragmentShaderPath = config.fragmentShaderPathAndEntrypoint.first;
+    std::filesystem::path vertexShaderPath = config.vertexShaderPathAndEntrypoint.first;
+    std::filesystem::path fragmentShaderPath = config.fragmentShaderPathAndEntrypoint.first;
 
     std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> vertTpl;
     std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> fragTpl;
 
     if (loadShadersFromMemoryInstead) {
-        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(config.vertexShaderPathAndEntrypoint, "vertex_shader_from_memory", vk::ShaderStageFlagBits::eVertex);
-        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(config.fragmentShaderPathAndEntrypoint, "fragment_shader_from_memory", vk::ShaderStageFlagBits::eFragment);
+        std::vector<std::string> includeSearchPaths{};
+        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(config.vertexShaderPathAndEntrypoint, "vertex_shader_from_memory", vk::ShaderStageFlagBits::eVertex, includeSearchPaths);
+        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos(config.fragmentShaderPathAndEntrypoint, "fragment_shader_from_memory", vk::ShaderStageFlagBits::eFragment, includeSearchPaths);
     } else {
         std::string vertexShaderCode = loadSlangShaderCodeFromFile(vertexShaderPath);
         std::string fragmentShaderCode = loadSlangShaderCodeFromFile(fragmentShaderPath);
-        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({vertexShaderCode.c_str(), config.vertexShaderPathAndEntrypoint.second}, vertexShaderPath, vk::ShaderStageFlagBits::eVertex);
-        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({fragmentShaderCode.c_str(), config.fragmentShaderPathAndEntrypoint.second}, fragmentShaderPath, vk::ShaderStageFlagBits::eFragment);
+
+        std::vector<std::string> includeSearchPathsVertex = {vertexShaderPath.parent_path().string()};
+        std::vector<std::string> includeSearchPathsFragment = {fragmentShaderPath.parent_path().string()};
+
+        vertTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({vertexShaderCode.c_str(), config.vertexShaderPathAndEntrypoint.second}, vertexShaderPath.string(), vk::ShaderStageFlagBits::eVertex, includeSearchPathsVertex);
+        fragTpl = loadSlangShaderFromMemoryAndCreateShaderModulesAndStageInfos({fragmentShaderCode.c_str(), config.fragmentShaderPathAndEntrypoint.second}, fragmentShaderPath.string(), vk::ShaderStageFlagBits::eFragment, includeSearchPathsFragment);
     }
 
     if (!std::get<vk::ShaderModule>(vertTpl) || !std::get<vk::ShaderModule>(fragTpl)) {
