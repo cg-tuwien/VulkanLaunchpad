@@ -20,28 +20,53 @@ elseif(UNIX)
 	set(SLANG_OS "linux-x86_64")
 endif()
 
-FetchContent_Populate(slang_zip URL https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}-${SLANG_OS}.zip QUIET)
-message(STATUS "Slang dir: ${slang_zip_SOURCE_DIR}")
-add_library(slang SHARED IMPORTED GLOBAL)
+FetchContent_Declare(slang
+	URL https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}-${SLANG_OS}.zip
+	DOWNLOAD_EXTRACT_TIMESTAMP false
+)
+FetchContent_MakeAvailable(slang)
+message(STATUS "Slang dir: ${slang_SOURCE_DIR}")
+
 if(WIN32)
+	add_library(slang SHARED IMPORTED GLOBAL)
 	set_target_properties(slang PROPERTIES
-			IMPORTED_LOCATION_SLANG  ${slang_zip_SOURCE_DIR}/bin/slang.dll
-			IMPORTED_LOCATION_SLANG_GLSLANG ${slang_zip_SOURCE_DIR}/bin/slang-glslang.dll
-			IMPORTED_IMPLIB ${slang_zip_SOURCE_DIR}/lib/slang.lib
-			INTERFACE_INCLUDE_DIRECTORIES ${slang_zip_SOURCE_DIR}/include
+			IMPORTED_LOCATION "${slang_SOURCE_DIR}/bin/slang.dll"
+			IMPORTED_IMPLIB "${slang_SOURCE_DIR}/lib/slang.lib"
+			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
+	)
+
+	add_library(slang-glslang SHARED IMPORTED GLOBAL)
+	set_target_properties(slang-glslang PROPERTIES
+			IMPORTED_LOCATION "${slang_SOURCE_DIR}/bin/slang-glslang.dll"
+			IMPORTED_NO_SONAME TRUE
+			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
 	)
 elseif(APPLE)
 	set_target_properties(slang PROPERTIES
-			IMPORTED_LOCATION ${slang_zip_SOURCE_DIR}/lib/libslang.dylib
-			INTERFACE_INCLUDE_DIRECTORIES ${slang_zip_SOURCE_DIR}/include
+			IMPORTED_LOCATION ${slang_SOURCE_DIR}/lib/libslang.dylib
+			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
+	)
+	set_target_properties(slang-glslang PROPERTIES
+			IMPORTED_LOCATION ${slang_SOURCE_DIR}/lib/libslang-glslang.dylib
+			IMPORTED_NO_SONAME TRUE
+			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
 	)
 elseif(UNIX)
+	add_library(slang SHARED IMPORTED GLOBAL)
 	set_target_properties(slang PROPERTIES
-			IMPORTED_LOCATION ${slang_zip_SOURCE_DIR}/lib/libslang.so
-			INTERFACE_INCLUDE_DIRECTORIES ${slang_zip_SOURCE_DIR}/include
+			IMPORTED_LOCATION "${slang_SOURCE_DIR}/lib/libslang.so"
+			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
+	)
+
+	add_library(slang-glslang SHARED IMPORTED GLOBAL)
+	set_target_properties(slang-glslang PROPERTIES
+			IMPORTED_LOCATION "${slang_SOURCE_DIR}/lib/libslang-glslang.so"
+			IMPORTED_NO_SONAME TRUE
+			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
 	)
 endif()
-add_library(slang::slang ALIAS slang)
+add_library(slang::slang INTERFACE IMPORTED)
+target_link_libraries(slang::slang INTERFACE slang slang-glslang)
 
 #================================#
 # Vulkan Launchpad Compiler      #
