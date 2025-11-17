@@ -38,6 +38,7 @@ if(WIN32)
 	add_library(slang-glslang SHARED IMPORTED GLOBAL)
 	set_target_properties(slang-glslang PROPERTIES
 			IMPORTED_LOCATION "${slang_SOURCE_DIR}/bin/slang-glslang.dll"
+			IMPORTED_IMPLIB "${slang_SOURCE_DIR}/lib/slang.lib"
 			IMPORTED_NO_SONAME TRUE
 			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
 	)
