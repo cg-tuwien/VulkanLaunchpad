@@ -98,8 +98,6 @@ std::unordered_map<VkPipeline, std::tuple<vk::UniqueDescriptorSetLayout, vk::Uni
 
 vk::Pipeline mBasicPipeline;
 
-GLFWwindow* mCallbackWindow = nullptr;
-GLFWkeyfun mPreviousKeyCallback = nullptr;
 int mKeyForShaderHotReloading = 0;
 int mModKeysForShaderHotReloading = 0;
 std::unordered_map<VkPipeline, std::tuple<VklGraphicsPipelineConfig, std::pair<std::string, std::string>, std::pair<std::string, std::string>, bool>> mUserKnownPipelines;
@@ -1210,7 +1208,9 @@ double vklWaitForNextSwapchainImage()
 	mFrameInFlightIndex = mFrameId % CONCURRENT_FRAMES;
 
 	// Just out of curiosity, measure the wait time:
-	auto t0 = glfwGetTime();
+    uint64_t counter = SDL_GetPerformanceCounter();
+    uint64_t freq = SDL_GetPerformanceFrequency();
+	auto t0 = (double)counter / (double)freq;
 
 	// Wait for the fence of the current image before reusing the same image available semaphore (as we have used #CONCURRENT_FRAMES in the past)
 	vk::Result returnCode = mDevice.waitForFences(1u, &mSyncHostWithDeviceFence[mFrameInFlightIndex].get(), VK_TRUE, std::numeric_limits<uint64_t>::max()); // Wait up to forever
@@ -1248,7 +1248,9 @@ double vklWaitForNextSwapchainImage()
 		.setSignalSemaphoreCount(0u)
 	});
 
-	auto t1 = glfwGetTime();
+    counter = SDL_GetPerformanceCounter();
+    freq = SDL_GetPerformanceFrequency();
+    auto t1 = (double)counter / (double)freq;
 	return t1 - t0;
 }
 
@@ -1899,26 +1901,6 @@ void vklHotReloadPipelines()
 
 		// And we have a new surrogate for the original:
 		mPipelineSurrogates[originalHandle] = newHandle;
-	}
-}
-
-void pipelineHotReloadingCallback(GLFWwindow* glfw_window, int key, int scancode, int action, int mods) {
-	if (action == GLFW_RELEASE && key == mKeyForShaderHotReloading && mods == mModKeysForShaderHotReloading) {
-		vklHotReloadPipelines();
-	}
-	if (nullptr != mPreviousKeyCallback) {
-		mPreviousKeyCallback(mCallbackWindow, key, scancode, action, mods);
-	}
-}
-
-void vklEnablePipelineHotReloading(GLFWwindow* glfw_window, int glfw_key, int glfw_modifier_keys)
-{
-	mCallbackWindow = glfw_window;
-	mKeyForShaderHotReloading = glfw_key;
-	mModKeysForShaderHotReloading = glfw_modifier_keys;
-	auto previousCallback = glfwSetKeyCallback(glfw_window, pipelineHotReloadingCallback);
-	if (previousCallback != pipelineHotReloadingCallback) {
-		mPreviousKeyCallback = previousCallback;
 	}
 }
 

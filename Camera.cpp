@@ -12,63 +12,9 @@ float mInput1 = 6.0f;
 bool mInput2;
 bool mInput3;
 
-/*!
- *	This callback function gets invoked by GLFW during glfwPollEvents() if there was
- *	mouse button input that can be processed by our application.
- */
-void mouseButtonCallbackFromGlfw(GLFWwindow* glfw_window, int button, int action, int mods) {
-	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-		mInput3 = true;
-	}
-	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-		mInput3 = false;
-	}
-	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-		mInput2 = true;
-	}
-	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
-		mInput2 = false;
-	}
-
-	// Keep potentially previously set callbacks intact:
-	for (const VklCamera& cam : mCameras) {
-		if (nullptr != cam.mPreviousMouseButtonFun) {
-			cam.mPreviousMouseButtonFun(glfw_window, button, action, mods);
-		}
-	}
-}
-
-/*!
- *	This callback function gets invoked by GLFW during glfwPollEvents() if there was
- *	mouse scroll input that can be processed by our application.
- */
-void scrollCallbackFromGlfw(GLFWwindow* glfw_window, double xoffset, double yoffset) {
-	mInput1 -= static_cast<float>(yoffset) * 0.5f;
-
-	// Keep potentially previously set callbacks intact:
-	for (const VklCamera& cam : mCameras) {
-		if (nullptr != cam.mPreviousScrollFun) {
-			cam.mPreviousScrollFun(glfw_window, xoffset, yoffset);
-		}
-	}
-}
-
-VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix)
+VklCameraHandle vklCreateCamera(SDL_Window* window, glm::mat4 projection_matrix)
 { 
-	// Establish a callback function for handling mouse button events:
-	// (and keeping potentially previously set callbacks intact)
-	auto previous_mouse_callback = glfwSetMouseButtonCallback(window, mouseButtonCallbackFromGlfw);
-	if (previous_mouse_callback == mouseButtonCallbackFromGlfw) {
-		previous_mouse_callback = nullptr; // Do not store this if this is pointing to the same callback function; otherwise we get a StackOverflow
-	}
-
-	// Establish a callback function for handling mouse scroll events:
-	auto previous_scroll_callback = glfwSetScrollCallback(window, scrollCallbackFromGlfw);
-	if (previous_scroll_callback == scrollCallbackFromGlfw) {
-		previous_scroll_callback = nullptr; // Do not store this if this is pointing to the same callback function; otherwise we get a StackOverflow
-	}
-
-	auto& newCam = mCameras.emplace_back(VklCamera{
+    auto& newCam = mCameras.emplace_back(VklCamera{
 		glm::mat4(1),
 		projection_matrix,
 		0.0, 0.0,
@@ -77,18 +23,16 @@ VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix)
 		glm::vec3{0},
 		glm::vec3{0},
 		glm::vec3{0},
-		window,
-		previous_mouse_callback,
-		previous_scroll_callback
+		window
 	});
 
 	return &newCam;
 }
 
-VklCameraHandle vklCreateCamera(GLFWwindow* window)
+VklCameraHandle vklCreateCamera(SDL_Window* window)
 { 
 	int window_width, window_height;
-	glfwGetWindowSize(window, &window_width, &window_height);
+    SDL_GetWindowSize(window, &window_width, &window_height);
 	return vklCreateCamera(window, vklCreatePerspectiveProjectionMatrix(glm::radians(60.0f), static_cast<float>(window_width) / static_cast<float>(window_height), 0.1f, 1000.0f));
 }
 
@@ -104,13 +48,8 @@ void vklDestroyCamera(VklCameraHandle handle)
 	auto it = findCamera(handle);
 
 	if (mCameras.end() != it) {
-		// Restore the original callbacks (which could have been nullptr):
-		glfwSetMouseButtonCallback(it->mWindow, it->mPreviousMouseButtonFun);
-		glfwSetScrollCallback(it->mWindow, it->mPreviousScrollFun);
-
-		mCameras.erase(it);
-	}
-	else {
+        mCameras.erase(it);
+	} else {
 		std::cout << "WARNING: No camera found for handle[" << handle << "] => vklDestroyCamera unsuccessful." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
 	}
 }
@@ -263,7 +202,41 @@ void vklUpdateCamera(VklCameraHandle handle)
 		return;
 	}
 
-	double x, y;
-	glfwGetCursorPos(it->mWindow, &x, &y);
+	float x, y;
+    SDL_GetMouseState(&x, &y);
 	vklUpdateCamera(handle, x, y, mInput1, mInput3, mInput2);
+}
+
+void vklCameraProcessEvent(VklCameraHandle handle, const SDL_Event& event) {
+    auto it = findCamera(handle);
+
+    if (mCameras.end() == it) {
+        std::cout << "WARNING: No camera found for handle[" << handle << "] => event cannot be processed." << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl;
+        return;
+    }
+
+    if (event.window.windowID != SDL_GetWindowID(it->mWindow)) {
+        return;
+    }
+
+    switch (event.type) {
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        case SDL_EVENT_MOUSE_BUTTON_UP:
+            if (event.button.button == SDL_BUTTON_LEFT && event.button.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                mInput3 = true;
+            }
+            else if (event.button.button == SDL_BUTTON_LEFT && event.button.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+                mInput3 = false;
+            }
+            else if (event.button.button == SDL_BUTTON_RIGHT && event.button.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                mInput2 = true;
+            }
+            else if (event.button.button == SDL_BUTTON_RIGHT && event.button.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+                mInput2 = false;
+            }
+            break;
+        case SDL_EVENT_MOUSE_WHEEL:
+            mInput1 -= static_cast<float>(event.wheel.y) * 0.5f;
+            break;
+    }
 }

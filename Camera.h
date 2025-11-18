@@ -22,9 +22,7 @@ struct VklCamera
 	glm::vec3 mStrafe;
 	glm::vec3 mTtt;
 	glm::vec3 mTt;
-	GLFWwindow* mWindow;
-	GLFWmousebuttonfun mPreviousMouseButtonFun;
-	GLFWscrollfun mPreviousScrollFun;
+	SDL_Window* mWindow;
 };
 
 /*!
@@ -33,12 +31,12 @@ struct VklCamera
 using VklCameraHandle = VklCamera*;
 
 /*!
-* Camera constructor, which internally creates GLFW hooks for handling mouse input. 
-* @param	window					The glfw window handle.
+* Camera constructor
+* @param	window					The SDL window handle.
 * @param	projection_matrix		The projection matrix to be used for this camera
 * @return	A handle that uniquely identifies a camera
 */
-VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix);
+VklCameraHandle vklCreateCamera(SDL_Window* window, glm::mat4 projection_matrix);
 
 /*!
 * Camera constructor which internally creates a default projection matrix.
@@ -46,41 +44,41 @@ VklCameraHandle vklCreateCamera(GLFWwindow* window, glm::mat4 projection_matrix)
 * @param	window		The glfw window handle.
 * @return	A handle that uniquely identifies a camera
 */
-VklCameraHandle vklCreateCamera(GLFWwindow* window);
+VklCameraHandle vklCreateCamera(SDL_Window* window);
 
 /*!
 * Destroys a given camera, also unhooking GLFW callbacks and restoring the previous callbacks.
-* @param	handle		Handle that uniquely indentifies a camera
+* @param	handle		Handle that uniquely identifies a camera
 */
 void vklDestroyCamera(VklCameraHandle handle);
 
 /*!
-* @param	handle		Handle that uniquely indentifies a camera
+* @param	handle		Handle that uniquely identifies a camera
 * @return the current position of the camera
 */
 glm::vec3 vklGetCameraPosition(VklCameraHandle handle);
 
 /*!
-* @param	handle		Handle that uniquely indentifies a camera
+* @param	handle		Handle that uniquely identifies a camera
 * @return the view matrix
 */
 glm::mat4 vklGetCameraViewMatrix(VklCameraHandle handle);
 
 /*!
-* @param	handle		Handle that uniquely indentifies a camera
+* @param	handle		Handle that uniquely identifies a camera
 * @return the projection matrix
 */
 glm::mat4 vklGetCameraProjectionMatrix(VklCameraHandle handle);
 
 /*!
-* @param	handle		Handle that uniquely indentifies a camera
+* @param	handle		Handle that uniquely identifies a camera
 * @return the view-projection matrix
 */
 glm::mat4 vklGetCameraViewProjectionMatrix(VklCameraHandle handle);
 
 /*!
 * Updates the camera's position and view matrix according to the input
-* @param	handle		Handle that uniquely indentifies a camera
+* @param	handle		Handle that uniquely identifies a camera
 * @param	x			current mouse x position
 * @param	y			current mouse x position
 * @param	zoom		zoom multiplier
@@ -92,6 +90,14 @@ void vklUpdateCamera(VklCameraHandle handle, double x, double y, float zoom, boo
 /*!
 * Updates the camera's position and view matrix with the current mouse input.
 * Ensure that glfwPollEvents has been invoked before, s.t. updated user input is available.
-* @param	handle		Handle that uniquely indentifies a camera
+* @param	handle		Handle that uniquely identifies a camera
 */
 void vklUpdateCamera(VklCameraHandle handle);
+
+/*!
+ * Updates internal state of the Camera using the received event.
+ * Call this function with every event you receive from SDL_PollEvent.
+ * @param	handle		Handle that uniquely identifies a camera
+ * @param   event       SDL_Event to process
+ */
+void vklCameraProcessEvent(VklCameraHandle handle, const SDL_Event& event);

@@ -84,22 +84,11 @@ endif()
 #================================#
 
 find_package(Vulkan REQUIRED)
-set(GLFW_BUILD_EXAMPLES OFF)
-set(GLFW_BUILD_TESTS OFF)
-set(GLFW_BUILD_DOCS OFF)
-set(GLFW_INSTALL OFF)
-set(GLFW_BUILD_WAYLAND OFF)
-set(VKL_GLFW_VERSION "3.4" CACHE STRING "VulkanLaunchpad glfw git tag")
+set(SDL_SHARED OFF)
+set(SDL_STATIC ON)
+set(SDL_TEST OFF)
 set(VKL_GLM_VERSION "1.0.2" CACHE STRING "VulkanLaunchpad glm git tag")
-
-message(DEBUG "glfw version: ${VKL_GLFW_VERSION}")
-FetchContent_Declare(
-	glfw
-	URL "https://github.com/glfw/glfw/archive/refs/tags/${VKL_GLFW_VERSION}.zip"
-	DOWNLOAD_EXTRACT_TIMESTAMP false
-	EXCLUDE_FROM_ALL
-)
-FetchContent_MakeAvailable(glfw)
+set(VKL_SDL_VERSION "release-3.2.26" CACHE STRING "VulkanLaunchpad SDL git tag")
 
 message(DEBUG "glm version: ${VKL_GLM_VERSION}")
 FetchContent_Declare(
@@ -110,8 +99,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
+message(DEBUG "SDL version: ${VKL_SDL_VERSION}")
+FetchContent_Declare(
+		sdl3
+		URL "https://github.com/libsdl-org/SDL/archive/refs/tags/${VKL_SDL_VERSION}.zip"
+		DOWNLOAD_EXTRACT_TIMESTAMP false
+		EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(sdl3)
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set_target_properties(glfw update_mappings PROPERTIES FOLDER "${VKL_EXTERNAL_FOLDER}/glfw")
 
 #================================#
 # Vulkan Launchpad Target        #
@@ -125,23 +122,20 @@ source_group("Source Files" FILES ${VKL_SOURCE_FILES})
 add_library(${PROJECT_NAME} STATIC ${VKL_HEADER_FILES} ${VKL_SOURCE_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
-	PUBLIC Vulkan::Vulkan glm::glm glfw
+	PUBLIC Vulkan::Vulkan glm::glm SDL3::SDL3
 	PRIVATE slang::slang
 )
 target_include_directories(${PROJECT_NAME} 
 	INTERFACE "${VKL_SOURCE_DIR}"
 	PUBLIC "${VKL_EXTERNAL_DIR}/include"
 )
-add_dependencies(${PROJECT_NAME} glfw slang::slang)
+add_dependencies(${PROJECT_NAME} slang::slang)
 
 #==================================#
 # Unset not needed cache variables #
 #==================================#
 
 unset(ENABLE_OPT CACHE)
-
-unset(GLFW_USE_HYBRID_HPG CACHE)
-unset(GLFW_VULKAN_STATIC CACHE)
 
 unset(LLVM_USE_CRT_DEBUG CACHE)
 unset(LLVM_USE_CRT_MINSIZEREL CACHE)

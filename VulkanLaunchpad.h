@@ -11,7 +11,8 @@
 #include <sstream>
 
 #include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
 
@@ -38,7 +39,7 @@
 
 #define VKL_WARNING(log)         do { std::cout << "WARNING: " << log << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } while(false)
 
-#define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR:   " << err << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; glfwTerminate(); std::stringstream ss; ss << err; throw std::runtime_error(ss.str()); } while(false)
+#define VKL_EXIT_WITH_ERROR(err) do { std::cout << "ERROR:   " << err << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; SDL_Quit(); std::stringstream ss; ss << err; throw std::runtime_error(ss.str()); } while(false)
 
 // Evaluates a vk::Result and displays its status:
 #define VKL_CHECK_VULKAN_RESULT(result) do { if ((result) < vk::Result::eSuccess) { std::cout << "ERROR:   Vulkan operation was not successful with error code " << vk::to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << std::endl; } else { std::cout << "CHECK:   Vulkan operation returned status code: " << vk::to_string(result) << VKL_DESCRIBE_FILE_LOCATION_FOR_OUT_STREAM << "\n";  } } while(false)
@@ -251,7 +252,7 @@ bool vklFrameworkInitialized();
  *	- calling mDevice.acquireNextImageKHR,
  *	- and signaling a vk::Semaphore which indicates when the image has become available.
  *
- *	@return	The elapsed time that this function waited, measured with calls to glfwGetTime
+ *	@return	The elapsed time that this function waited, measured with calls to SDL_GetPerformanceCounter and SDL_GetPerformanceFrequency.
  */
 double vklWaitForNextSwapchainImage();
 
@@ -660,27 +661,6 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj);
  *  Triggers the unconditional hot-reloading of all known graphics pipelines.
  */
 void vklHotReloadPipelines();
-
-/*!
- *  Enables graphics pipeline hot-reloading to be triggered by users through a defined keyboard shortcut.
- *  Pipeline hot-reloading can be super helpful during shader development. Pipelines containing the updated
- *  shader code can be swapped under the hood while the application is running, without the need to restart
- *  the application.
- *  
- *  Preconditions in code to enable graphics pipeline hot-reloading:
- *   - Either call vklEnablePipelineHotReloading once at initialization time, or manually invoke vklHotReloadPipelines!
- *   - IMPORTANT: Use vklCmdBindPipeline(vk::CommandBuffer, vk::PipelineBindPoint, vk::Pipeline) instead of
- *                the Vulkan API's vk::CommandBuffer::bindPipeline(vk::PipelineBindPoint, vk::Pipeline)!
- * 
- *  @param  glfw_window             GLFW window, which is required to establish a key callback
- *  @param  glfw_key                Desired key which shall trigger pipelines to be hot-reloaded, 
- *                                  as GLFW key code (e.g. GLFW_KEY_F5, or GLFW_KEY_R)
- *  @param  glfw_modifier_keys      If desired, modifier keys can be added to the keyboard shortcut through this parameter.
- *                                  Useful values are: GLFW_MOD_SHIFT, GLFW_MOD_CONTROL, or GLFW_MOD_ALT
- *                                  A combination of these is possible by OR-ing these values together.
- *                                  If no modifier is desired, just pass 0 (default value).
- */
-void vklEnablePipelineHotReloading(GLFWwindow* glfw_window, int glfw_key, int glfw_modifier_keys = 0);
 
 /*!
  *  Replacement function for the Vulkan API's vk::CommandBuffer::bindPipeline function, adding support for pipeline hot-reloading,
