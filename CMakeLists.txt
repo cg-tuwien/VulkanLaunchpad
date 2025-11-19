@@ -14,18 +14,36 @@ set(VKL_EXTERNAL_DIR "${VKL_SOURCE_DIR}/external")
 set(SLANG_VERSION "2025.19.1")
 if(WIN32)
 	set(SLANG_OS "windows-x86_64")
-elseif(APPLE)
-	set(SLANG_OS "macos-aarch64")
 elseif(UNIX)
 	set(SLANG_OS "linux-x86_64")
 endif()
 
-FetchContent_Declare(slang
-	URL https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}-${SLANG_OS}.zip
-	DOWNLOAD_EXTRACT_TIMESTAMP false
-)
-FetchContent_MakeAvailable(slang)
-message(STATUS "Slang dir: ${slang_SOURCE_DIR}")
+if (NOT APPLE)
+	FetchContent_Declare(slang
+		URL https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}-${SLANG_OS}.zip
+		DOWNLOAD_EXTRACT_TIMESTAMP false
+	)
+	FetchContent_MakeAvailable(slang)
+	message(STATUS "Slang dir: ${slang_SOURCE_DIR}")
+else ()
+	# Since we build a universal binary for apple, we need to download both architectures
+	# of slang and merge them together using lipo
+	set(SLANG_OS "macos-aarch64")
+	FetchContent_Declare(slang-arm
+		URL https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}-${SLANG_OS}.zip
+		DOWNLOAD_EXTRACT_TIMESTAMP false
+	)
+	FetchContent_MakeAvailable(slang-arm)
+	message(STATUS "Slang arm64 dir: ${slang-arm_SOURCE_DIR}")
+
+	set(SLANG_OS "macos-x86_64")
+	FetchContent_Declare(slang-x86
+		URL https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}-${SLANG_OS}.zip
+		DOWNLOAD_EXTRACT_TIMESTAMP false
+	)
+	FetchContent_MakeAvailable(slang-x86)
+	message(STATUS "Slang x86_64 dir: ${slang-x86_SOURCE_DIR}")
+endif ()
 
 if(WIN32)
 	add_library(slang SHARED IMPORTED GLOBAL)
@@ -43,14 +61,41 @@ if(WIN32)
 			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
 	)
 elseif(APPLE)
+	set(slang_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/slang-universal/")
+
+	function (create_universal_slang_lib lib_name)
+		set(LIB_PATH "/lib/${lib_name}.dylib")
+		add_custom_command(
+				OUTPUT "${slang_SOURCE_DIR}${LIB_PATH}"
+				COMMAND lipo -create
+					"${slang-arm_SOURCE_DIR}${LIB_PATH}"
+					"${slang-x86_SOURCE_DIR}${LIB_PATH}"
+					-output "${slang_SOURCE_DIR}${LIB_PATH}"
+				DEPENDS "${slang-arm_SOURCE_DIR}${LIB_PATH}" "${slang-x86_SOURCE_DIR}${LIB_PATH}"
+				COMMENT "Creating universal ${lib_name}.dylib"
+		)
+	endfunction ()
+
+	create_universal_slang_lib("libslang")
+	create_universal_slang_lib("libslang-glslang")
+
+	add_custom_target(slang-universal ALL
+			DEPENDS "${slang_SOURCE_DIR}/lib/libslang.dylib" "${slang_SOURCE_DIR}/lib/libslang-glslang.dylib"
+	)
+
+	add_library(slang SHARED IMPORTED GLOBAL)
+	add_dependencies(slang slang-universal)
 	set_target_properties(slang PROPERTIES
 			IMPORTED_LOCATION ${slang_SOURCE_DIR}/lib/libslang.dylib
-			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
+			INTERFACE_INCLUDE_DIRECTORIES ${slang-arm_SOURCE_DIR}/include
 	)
+
+	add_library(slang-glslang INTERFACE IMPORTED GLOBAL)
+	add_dependencies(slang-glslang slang-universal)
 	set_target_properties(slang-glslang PROPERTIES
 			IMPORTED_LOCATION ${slang_SOURCE_DIR}/lib/libslang-glslang.dylib
 			IMPORTED_NO_SONAME TRUE
-			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
+			INTERFACE_INCLUDE_DIRECTORIES ${slang-arm_SOURCE_DIR}/include
 	)
 elseif(UNIX)
 	add_library(slang SHARED IMPORTED GLOBAL)
