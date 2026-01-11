@@ -64,12 +64,6 @@ bool mFrameworkInitialized                                      = false;
 DISPATCH_LOADER_NAMESPACE::DispatchLoaderDynamic mDynamicDispatch;
 vk::ResultValueType<VULKAN_HPP_NAMESPACE::DebugUtilsMessengerEXT>::type mDebugUtilsMessenger;
 std::vector<std::vector<vk::ImageView>> mSwapchainImageViews; //< Will be the length of #swapchain images
-vk::PipelineStageFlags mSrcStages0;
-vk::AccessFlags mSrcAccess0;
-vk::PipelineStageFlags mDstStages0;
-vk::AccessFlags mDstAccess0;
-vk::UniqueRenderPass mRenderpass;
-std::vector<vk::UniqueFramebuffer> mFramebuffers; //< Will be the length of #swapchain images
 bool mHasDepthAttachments = false;
 
 constexpr int CONCURRENT_FRAMES = 10;
@@ -430,6 +424,26 @@ vk::Pipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& con
 		, nullptr, mDispatchLoader
 	);
 
+    auto depthAttachmentFormat = vk::Format::eUndefined;
+    if (mHasDepthAttachments) {
+        for (size_t i = 0; i < mSwapchainConfig.swapchainImages.size(); ++i) {
+            auto hasDepthAttachment = mSwapchainConfig.swapchainImages[i].depthAttachmentImageDetails.imageHandle != VK_NULL_HANDLE;
+            if (hasDepthAttachment) {
+                // Get the first specified depth attachment format. All images are assumed to have the same format.
+                depthAttachmentFormat = mSwapchainConfig.swapchainImages[i].depthAttachmentImageDetails.imageFormat;
+                break;
+            }
+        }
+    }
+
+    vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo = vk::PipelineRenderingCreateInfo{
+        {},
+        1,
+        &mSwapchainConfig.swapchainImages[0].colorAttachmentImageDetails.imageFormat,
+        depthAttachmentFormat,
+        vk::Format::eUndefined
+    };
+
 	// Put everything together:
 	auto pipelineCreateInfo = vk::GraphicsPipelineCreateInfo{}
 		.setStageCount(static_cast<uint32_t>(shaderStages.size())).setPStages(shaderStages.data())
@@ -441,7 +455,7 @@ vk::Pipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& con
 		.setPDepthStencilState(&depthStencilState)
 		.setPColorBlendState(&colorBlendState)
 		.setLayout(pipelineLayout.get())
-		.setRenderPass(mRenderpass.get()).setSubpass(0u); // <--- Which subpass of the given renderpass we are going to use this graphics pipeline for
+		.setPNext(pipelineRenderingCreateInfo);
 	// FINALLY:
 	auto graphicsPipeline = mDevice.createGraphicsPipeline(nullptr, pipelineCreateInfo).value;
 	
@@ -899,12 +913,6 @@ bool vklInitFramework(vk::Instance vk_instance, vk::SurfaceKHR vk_surface, vk::P
 	// Wrap swapchain images with IMAGE VIEWS and prepare data for RENDERPASS:
 	mSwapchainImageViews.resize(mSwapchainConfig.swapchainImages.size());
 
-	std::vector<vk::AttachmentDescription> attachmentDescriptions;
-	// Layout transitions for all color attachments in here:
-	std::vector<vk::AttachmentReference> colorAttachmentsInSubpass0;
-	// Layout transitions for all depth attachments in here:
-	std::vector<vk::AttachmentReference> depthAttachmentsInSubpass0;
-
 	for (size_t i = 0; i < mSwapchainConfig.swapchainImages.size(); ++i) {
 		std::vector<VklSwapchainImageDetails> attachments_0;
 		if (mSwapchainConfig.swapchainImages[0].colorAttachmentImageDetails.imageHandle != VK_NULL_HANDLE) { attachments_0.push_back(mSwapchainConfig.swapchainImages[0].colorAttachmentImageDetails); }
@@ -969,108 +977,15 @@ bool vklInitFramework(vk::Instance vk_instance, vk::SurfaceKHR vk_surface, vk::P
 				});
 			}
 			
-			// Gather information for the renderpass already:
+			// Check if there is any depth attachment
 			if (0 == i) {
-				auto curAttachmentIndex = static_cast<uint32_t>(attachmentDescriptions.size());
-
-				attachmentDescriptions.emplace_back(vk::AttachmentDescription{}
-					.setFormat(attachments_i[j].imageFormat)
-					.setLoadOp(vk::AttachmentLoadOp::eClear)		// What do do with the image when the renderpass starts? => Make sure that we have cleared the content of previous frames!
-					.setStoreOp( // What to do with the image when the renderpass has finished? => We don't need the depth buffer for anything afterwards.
-						vk::ImageUsageFlagBits::eDepthStencilAttachment & attachments_i[j].imageUsage
-						? vk::AttachmentStoreOp::eDontCare
-						: vk::AttachmentStoreOp::eStore)
-					.setInitialLayout(vk::ImageLayout::eUndefined)	// When the renderpass starts, in which layout will the image be? => We don't care since we're clearing it.
-					.setFinalLayout( // When the renderpass finishes, in which layout shall the image be transfered? => The image shall be presented directly afterwards. 
-						vk::ImageUsageFlagBits::eDepthStencilAttachment & attachments_i[j].imageUsage
-						? vk::ImageLayout::eDepthStencilAttachmentOptimal // When the renderpass finishes, in which layout shall the image be transferred? => It will be in eDepthStencilAttachmentOptimal layout anyways.
-						: vk::ImageLayout::ePresentSrcKHR)
-					.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-					.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-				);
-				
 				if (vk::ImageUsageFlagBits::eDepthStencilAttachment & attachments_i[j].imageUsage) {
-					depthAttachmentsInSubpass0.emplace_back(curAttachmentIndex, vk::ImageLayout::eDepthStencilAttachmentOptimal); // Describes the index (w.r.t. attachmentDescriptions) and the desired layout of the depth attachment for subpass 0
-				}
-				else {
-					colorAttachmentsInSubpass0.emplace_back(curAttachmentIndex, vk::ImageLayout::eColorAttachmentOptimal); // Describes the index (w.r.t. attachmentDescriptions) and the desired layout of the color attachment for subpass 0
+					mHasDepthAttachments = true;
 				}
 			}
 
 			currentClearValues.emplace_back(attachments_i[j].clearValue);
 		}
-	}
-
-	mHasDepthAttachments = !depthAttachmentsInSubpass0.empty();
-
-	// Create the RENDERPASS:
-	// ad 2) Describe per subpass for each attachment how it is going to be used, and into which layout it shall be transferred
-	auto subpassDescription = vk::SubpassDescription{}
-		.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics) // Despite looking as if it was configurable, only eGraphics is valid/supported
-		.setColorAttachmentCount(static_cast<uint32_t>(colorAttachmentsInSubpass0.size()))
-		.setPColorAttachments(colorAttachmentsInSubpass0.data());
-	if (mHasDepthAttachments) {
-		subpassDescription.setPDepthStencilAttachment(depthAttachmentsInSubpass0.data());
-	}
-
-	// In any case, prepare for potential device transfers (we wouldn't need it for host coherent buffers, which are made available on queue submission)
-	mSrcStages0 = vk::PipelineStageFlagBits::eTransfer;
-	mSrcAccess0 = vk::AccessFlagBits::eTransferWrite;
-	// In any case, we must wait for such potential transfers in fragment shaders, where we're using the buffers
-	mDstStages0 = vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eColorAttachmentOutput;
-	mDstAccess0 = vk::AccessFlagBits::eShaderRead            | vk::AccessFlagBits::eColorAttachmentWrite        ;
-	// If we have depth attachments, prepare for the case where one single depth image is used for all framebuffers in flight:
-	// (For further details, see here: https://stackoverflow.com/questions/62371266/why-is-a-single-depth-buffer-sufficient-for-this-vulkan-swapchain-render-loop/62398311#62398311)
-	if (mHasDepthAttachments) {
-		mSrcStages0 |= (vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests);
-		mSrcAccess0 |= (vk::AccessFlagBits::eDepthStencilAttachmentWrite);
-		mDstStages0 |= (vk::PipelineStageFlagBits::eEarlyFragmentTests  | vk::PipelineStageFlagBits::eLateFragmentTests   );
-		mDstAccess0 |= (vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite);
-	}
-	// We don't really need to synchronize on the COLOR_ATTACHMENT_OUTPUT stage since actually our fences ensure that we do not reuse the same swap chain image.
-	// Therefore, this should be fine.
-
-	// ad 3) Describe execution and memory dependencies (just in the same way as with pipeline barriers).
-	//        In this case, we only have external dependencies: One with whatever comes before we are using
-	//        this renderpass, and another with whatever comes after this renderpass in a queue.
-	std::array<vk::SubpassDependency, 2> subpassDependencies{
-		vk::SubpassDependency{}
-			// Establish proper dependencies with whatever comes before (which is the imageAvailableSemaphore wait and then the command buffer that copies an explosion image to the swapchain image):
-			.setSrcSubpass(VK_SUBPASS_EXTERNAL) /* -> */ .setDstSubpass(0u)
-			.setSrcStageMask(mSrcStages0) /* -> */ .setDstStageMask(mDstStages0)
-			.setSrcAccessMask(mSrcAccess0) /* -> */ .setDstAccessMask(mDstAccess0)
-	,	vk::SubpassDependency{}
-			// Establish proper dependencies with whatever comes after (which is the renderFinishedSemaphore signal):
-			.setSrcSubpass(0u) /* -> */ .setDstSubpass(VK_SUBPASS_EXTERNAL)
-			//     Execution may continue as soon as the eColorAttachmentOutput stage is done.
-			//     However, nothing must really wait on that stage, because afterwards comes the semaphore. Hence, eBottomOfPipe.
-			.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput) /* -> */ .setDstStageMask(vk::PipelineStageFlagBits::eBottomOfPipe)
-			//     The graphics pipeline is performing eColorAttachmentWrites. These need to be made available.
-			//     We don't have to make them visible to anything, because the semaphore performs a full memory barrier anyways. 
-			.setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite) /* -> */ .setDstAccessMask(vk::AccessFlags{})
-	};
-
-	auto renderpassCreateInfo = vk::RenderPassCreateInfo{}
-		.setAttachmentCount(static_cast<uint32_t>(attachmentDescriptions.size()))
-		.setPAttachments(attachmentDescriptions.data())
-		.setSubpassCount(1u)
-		.setPSubpasses(&subpassDescription)
-		.setDependencyCount(static_cast<uint32_t>(subpassDependencies.size()))
-		.setPDependencies(subpassDependencies.data());
-	mRenderpass = mDevice.createRenderPassUnique(renderpassCreateInfo, nullptr, mDispatchLoader);
-
-	// Create the FRAMEBUFFERS
-	mFramebuffers.reserve(mSwapchainImageViews.size());
-	for (const auto& set : mSwapchainImageViews) {
-		auto framebufferCreateInfo = vk::FramebufferCreateInfo{}
-			.setRenderPass(mRenderpass.get())
-			.setAttachmentCount(static_cast<uint32_t>(set.size()))
-			.setPAttachments(set.data())
-			.setWidth(mSwapchainConfig.imageExtent.width)
-			.setHeight(mSwapchainConfig.imageExtent.height)
-			.setLayers(1u);
-
-		mFramebuffers.push_back(mDevice.createFramebufferUnique(framebufferCreateInfo, nullptr, mDispatchLoader));
 	}
 
 	// Create SEMAPHORES and FENCES, and also prepare the safety-vector of FENCES
@@ -1079,7 +994,7 @@ bool vklInitFramework(vk::Instance vk_instance, vk::SurfaceKHR vk_surface, vk::P
 		mRenderFinishedSemaphores[i] = mDevice.createSemaphoreUnique(vk::SemaphoreCreateInfo{}, nullptr, mDispatchLoader);
 		mSyncHostWithDeviceFence[i] = mDevice.createFenceUnique(vk::FenceCreateInfo{}.setFlags(vk::FenceCreateFlagBits::eSignaled), nullptr, mDispatchLoader);
 	}
-	mImagesInFlightFenceIndices.resize(mFramebuffers.size(), -1);
+	mImagesInFlightFenceIndices.resize(mSwapchainImageViews.size(), -1);
 
 	mFrameId = -1;
 	// We have to make sure that not more than #CONCURRENT_FRAMES are in flight at the same time. We can use fences to ensure that. 
@@ -1174,8 +1089,6 @@ void vklDestroyFramework()
 		mRenderFinishedSemaphores[i].reset();
 		mImageAvailableSemaphores[i].reset();
 	}
-	mFramebuffers.clear();
-	mRenderpass.reset();
 	for (const auto& set : mSwapchainImageViews) {
 		for (const auto& view : set) {
 			mDevice.destroyImageView(view);
@@ -1237,12 +1150,16 @@ double vklWaitForNextSwapchainImage()
 		// But do not reset! Otherwise we will wait forever at the next waitForFences that will happen for sure.
 	}
 
+    auto dstStageMask = vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    if (mHasDepthAttachments) {
+        dstStageMask |= vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eLateFragmentTests;
+    }
 	// Submit a "fake" work package to the queue in order to wait for the image to become available before starting to render into it:
 	mQueue.submit({ vk::SubmitInfo{}
 		.setWaitSemaphoreCount(1u)
 		// Wait for the image to become available:
 		.setPWaitSemaphores(&mImageAvailableSemaphores[mFrameInFlightIndex].get())
-		.setPWaitDstStageMask(&mDstStages0) // It's the same destination stages that must wait on the image to become available.
+		.setPWaitDstStageMask(&dstStageMask) // It's the same destination stages that must wait on the image to become available.
 		.setCommandBufferCount(0u) // Submit ZERO command buffers :O
 		// We don't signal anything here:
 		.setSignalSemaphoreCount(0u)
@@ -1285,6 +1202,52 @@ void vklPresentCurrentSwapchainImage()
 	mImagesInFlightFenceIndices[mCurrentSwapChainImageIndex] = mFrameInFlightIndex;
 }
 
+void vklTransitionImageLayoutForRendering(vk::CommandBuffer command_buffer, vk::Image image)
+{
+    vk::ImageMemoryBarrier imageMemoryBarrier = vk::ImageMemoryBarrier{
+        vk::AccessFlagBits{},
+        vk::AccessFlagBits::eColorAttachmentWrite,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        image,
+        vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 }
+    };
+
+    command_buffer.pipelineBarrier(
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        {},
+        {},
+        {},
+        imageMemoryBarrier
+    );
+}
+
+void vklTransitionImageLayoutForPresenting(vk::CommandBuffer command_buffer, vk::Image image)
+{
+    vk::ImageMemoryBarrier imageMemoryBarrier = vk::ImageMemoryBarrier{
+        vk::AccessFlagBits::eColorAttachmentWrite,
+        vk::AccessFlagBits{},
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ImageLayout::ePresentSrcKHR,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        image,
+        vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 }
+    };
+
+    command_buffer.pipelineBarrier(
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits::eBottomOfPipe,
+        {},
+        {},
+        {},
+        imageMemoryBarrier
+    );
+}
+
 void vklStartRecordingCommands()
 {
 	if (!vklFrameworkInitialized()) {
@@ -1313,11 +1276,40 @@ void vklStartRecordingCommands()
 	// Start recording:
 	cb.begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 
-	cb.beginRenderPass(vk::RenderPassBeginInfo{
-		mRenderpass.get(), mFramebuffers[mCurrentSwapChainImageIndex].get(),
-		vk::Rect2D{vk::Offset2D{0, 0}, mSwapchainConfig.imageExtent},
-		static_cast<uint32_t>(mClearValues[mCurrentSwapChainImageIndex].size()), mClearValues[mCurrentSwapChainImageIndex].data()
-		}, vk::SubpassContents::eInline);
+    vk::Image currentImage = mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].colorAttachmentImageDetails.imageHandle;
+    vklTransitionImageLayoutForRendering(cb, currentImage);
+
+    vk::RenderingAttachmentInfo colorRenderingAttachmentInfo = vk::RenderingAttachmentInfo{
+        mSwapchainImageViews[mCurrentSwapChainImageIndex][0],
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ResolveModeFlagBits::eNone,
+        {},
+        vk::ImageLayout::eUndefined,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eStore,
+        mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].colorAttachmentImageDetails.clearValue
+    };
+
+    vk::RenderingAttachmentInfo depthRenderingAttachmentInfo = vk::RenderingAttachmentInfo{
+        mSwapchainImageViews[mCurrentSwapChainImageIndex][1],
+        vk::ImageLayout::eDepthAttachmentOptimal,
+        vk::ResolveModeFlagBits::eNone,
+        {},
+        vk::ImageLayout::eUndefined,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eStore,
+        mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].depthAttachmentImageDetails.clearValue
+    };
+
+    cb.beginRendering(vk::RenderingInfo{
+        {},
+        vk::Rect2D{vk::Offset2D{0, 0}, mSwapchainConfig.imageExtent},
+        1,
+        0,
+        colorRenderingAttachmentInfo,
+        &depthRenderingAttachmentInfo,
+        {}
+    });
 }
 
 void vklEndRecordingCommands()
@@ -1330,7 +1322,10 @@ void vklEndRecordingCommands()
 	}
 	const auto& cb = mSingleUseCommandBuffers.back().get();
 	
-	cb.endRenderPass();
+	cb.endRendering();
+
+    vk::Image currentImage = mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].colorAttachmentImageDetails.imageHandle;
+    vklTransitionImageLayoutForPresenting(cb, currentImage);
 
 	// Stop recording:
 	cb.end();
@@ -1345,28 +1340,9 @@ uint32_t vklGetCurrentSwapChainImageIndex()
 {
 	return mCurrentSwapChainImageIndex;
 }
-uint32_t vklGetNumFramebuffers()
-{
-	return static_cast<uint32_t>(mFramebuffers.size());
-}
 uint32_t vklGetNumClearValues()
 {
   return static_cast<uint32_t>(mClearValues.size());
-}
-vk::Framebuffer vklGetFramebuffer(uint32_t i)
-{
-	if (i >= mFramebuffers.size()) {
-		VKL_EXIT_WITH_ERROR("The given index[" + std::to_string(i) + "] is larger than the number of available framebuffers[" + std::to_string(mFramebuffers.size()) + "]");
-	}
-	return mFramebuffers[i].get();
-}
-vk::Framebuffer vklGetCurrentFramebuffer()
-{
-	return vklGetFramebuffer(vklGetCurrentSwapChainImageIndex());
-}
-vk::RenderPass vklGetRenderpass()
-{
-	return mRenderpass.get();
 }
 vk::CommandBuffer vklGetCurrentCommandBuffer()
 {

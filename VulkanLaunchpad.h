@@ -266,6 +266,30 @@ double vklWaitForNextSwapchainImage();
 void vklPresentCurrentSwapchainImage();
 
 /*!
+ * Transitions the image (swapchain image) layout to be used for rendering.
+ *
+ * This is done using a vk::ImageMemoryBarrier to transition from vk::ImageLayout::eUndefined to
+ * vk::ImageLayout::eColorAttachmentOptimal using a pipeline barrier between
+ * vk::PipelineStageFlagBits::eTopOfPipe and vk::PipelineStageFlagBits::eColorAttachmentOutput.
+ *
+ * @param command_buffer The command buffer to apply the image memory barrier to
+ * @param image The image to transition
+ */
+void vklTransitionImageLayoutForRendering(vk::CommandBuffer command_buffer, vk::Image image);
+
+/*!
+ * Transitions the image (swapchain image) layout to be used for presenting.
+ *
+ * This is done using a vk::ImageMemoryBarrier to transition from vk::ImageLayout::eColorAttachmentOptimal to
+ * vk::ImageLayout::ePresentSrcKHR using a pipeline barrier between
+ * vk::PipelineStageFlagBits::eColorAttachmentOutput and vk::PipelineStageFlagBits::eBottomOfPipe.
+ *
+ * @param command_buffer The command buffer to apply the image memory barrier to
+ * @param image The image to transition
+ */
+void vklTransitionImageLayoutForPresenting(vk::CommandBuffer command_buffer, vk::Image image);
+
+/*!
  *	This function internally creates a (single use) command buffer which will be recording until
  *	vklEndRecordingCommands() is called. Between the two, draw calls such can
  *	be recorded into the command buffer.
@@ -517,35 +541,11 @@ vk::PipelineLayout vklGetLayoutForPipeline(vk::Pipeline pipeline);
 uint32_t vklGetCurrentSwapChainImageIndex();
 
 /*!
- *	Returns the number of framebuffers that are used by the framework. This will most
- *	likely be at least two (a front buffer and a back buffer) and matches the
- *	number of swap chain images that have been created.
- */
-uint32_t vklGetNumFramebuffers();
-
-/*!
  *  Returns the number of clear values currently in use by the
  *  framework. This should correspond to the number of swapchain
  *  images.
  */
 uint32_t vklGetNumClearValues();
-
-/*!
- *	Returns the framebuffers at the given index. The index is bounded by the number 
- *	of swap chain images (see vklGetNumFramebuffers()).
- */
-vk::Framebuffer vklGetFramebuffer(uint32_t i);
-
-/*!
- *	Returns the currently active framebuffer that is used as back buffer, i.e., which
- *	is to be rendered into during the current frame.
- */
-vk::Framebuffer vklGetCurrentFramebuffer();
-
-/*!
- *	Returns the render pass which was used to create the framebuffers.
- */
-vk::RenderPass vklGetRenderpass();
 
 /*!
  *	Returns the currently active command buffer (if there is one).
