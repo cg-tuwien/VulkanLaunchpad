@@ -278,6 +278,18 @@ void vklPresentCurrentSwapchainImage();
 void vklTransitionImageLayoutForRendering(vk::CommandBuffer command_buffer, vk::Image image);
 
 /*!
+ * Transitions the depth image (swapchain depth image) layout to be used for rendering.
+ *
+ * This is done using a vk::ImageMemoryBarrier to transition from vk::ImageLayout::eUndefined to
+ * vk::ImageLayout::eDepthAttachmentOptimal using a pipeline barrier between
+ * vk::PipelineStageFlagBits::eTopOfPipe and vk::PipelineStageFlagBits::eEarlyFragmentTests.
+ *
+ * @param command_buffer The command buffer to apply the image memory barrier to
+ * @param image The image to transition
+ */
+void vklTransitionDepthImageLayoutForRendering(vk::CommandBuffer command_buffer, vk::Image image);
+
+/*!
  * Transitions the image (swapchain image) layout to be used for presenting.
  *
  * This is done using a vk::ImageMemoryBarrier to transition from vk::ImageLayout::eColorAttachmentOptimal to

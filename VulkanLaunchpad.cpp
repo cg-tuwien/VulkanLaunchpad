@@ -1225,6 +1225,28 @@ void vklTransitionImageLayoutForRendering(vk::CommandBuffer command_buffer, vk::
     );
 }
 
+void vklTransitionDepthImageLayoutForRendering(vk::CommandBuffer command_buffer, vk::Image image) {
+    vk::ImageMemoryBarrier imageMemoryBarrier = vk::ImageMemoryBarrier{
+        vk::AccessFlagBits{},
+        vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eDepthAttachmentOptimal,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        image,
+        vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1 }
+    };
+
+    command_buffer.pipelineBarrier(
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eEarlyFragmentTests,
+        {},
+        {},
+        {},
+        imageMemoryBarrier
+    );
+}
+
 void vklTransitionImageLayoutForPresenting(vk::CommandBuffer command_buffer, vk::Image image)
 {
     vk::ImageMemoryBarrier imageMemoryBarrier = vk::ImageMemoryBarrier{
@@ -1278,6 +1300,9 @@ void vklStartRecordingCommands()
 
     vk::Image currentImage = mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].colorAttachmentImageDetails.imageHandle;
     vklTransitionImageLayoutForRendering(cb, currentImage);
+
+    vk::Image currentDepthImage = mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].depthAttachmentImageDetails.imageHandle;
+    vklTransitionDepthImageLayoutForRendering(cb, currentDepthImage);
 
     vk::RenderingAttachmentInfo colorRenderingAttachmentInfo = vk::RenderingAttachmentInfo{
         mSwapchainImageViews[mCurrentSwapChainImageIndex][0],
