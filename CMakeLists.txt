@@ -45,20 +45,22 @@ else ()
 	message(STATUS "Slang x86_64 dir: ${slang-x86_SOURCE_DIR}")
 endif ()
 
+add_library(slang INTERFACE)
+add_library(slang::slang-compiler SHARED IMPORTED GLOBAL)
+add_library(slang::slang-glslang MODULE IMPORTED GLOBAL)
+
 if(WIN32)
-	add_library(slang SHARED IMPORTED GLOBAL)
-	set_target_properties(slang PROPERTIES
-			IMPORTED_LOCATION "${slang_SOURCE_DIR}/bin/slang.dll"
-			IMPORTED_IMPLIB "${slang_SOURCE_DIR}/lib/slang.lib"
-			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
+	target_include_directories(slang
+			INTERFACE ${slang_SOURCE_DIR}/include
 	)
 
-	add_library(slang-glslang SHARED IMPORTED GLOBAL)
-	set_target_properties(slang-glslang PROPERTIES
-			IMPORTED_LOCATION "${slang_SOURCE_DIR}/bin/slang-glslang.dll"
+	set_target_properties(slang::slang-compiler PROPERTIES
+			IMPORTED_LOCATION "${slang_SOURCE_DIR}/bin/slang.dll"
 			IMPORTED_IMPLIB "${slang_SOURCE_DIR}/lib/slang.lib"
-			IMPORTED_NO_SONAME TRUE
-			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
+	)
+
+	set_target_properties(slang::slang-glslang PROPERTIES
+			IMPORTED_LOCATION "${slang_SOURCE_DIR}/bin/slang-glslang.dll"
 	)
 elseif(APPLE)
 	set(slang_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/slang-universal/")
@@ -83,36 +85,33 @@ elseif(APPLE)
 			DEPENDS "${slang_SOURCE_DIR}/lib/libslang.dylib" "${slang_SOURCE_DIR}/lib/libslang-glslang.dylib"
 	)
 
-	add_library(slang SHARED IMPORTED GLOBAL)
-	add_dependencies(slang slang-universal)
-	set_target_properties(slang PROPERTIES
-			IMPORTED_LOCATION ${slang_SOURCE_DIR}/lib/libslang.dylib
-			INTERFACE_INCLUDE_DIRECTORIES ${slang-arm_SOURCE_DIR}/include
+	target_include_directories(slang
+			INTERFACE ${slang-arm_SOURCE_DIR}/include
 	)
 
-	add_library(slang-glslang INTERFACE IMPORTED GLOBAL)
-	add_dependencies(slang-glslang slang-universal)
-	set_target_properties(slang-glslang PROPERTIES
+	add_dependencies(slang::slang-compiler slang-universal)
+	set_target_properties(slang::slang-compiler PROPERTIES
+			IMPORTED_LOCATION ${slang_SOURCE_DIR}/lib/libslang.dylib
+	)
+
+	add_dependencies(slang::slang-glslang slang-universal)
+	set_target_properties(slang::slang-glslang PROPERTIES
 			IMPORTED_LOCATION ${slang_SOURCE_DIR}/lib/libslang-glslang.dylib
-			IMPORTED_NO_SONAME TRUE
-			INTERFACE_INCLUDE_DIRECTORIES ${slang-arm_SOURCE_DIR}/include
 	)
 elseif(UNIX)
-	add_library(slang SHARED IMPORTED GLOBAL)
-	set_target_properties(slang PROPERTIES
-			IMPORTED_LOCATION "${slang_SOURCE_DIR}/lib/libslang.so"
-			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
+	target_include_directories(slang
+			INTERFACE ${slang_SOURCE_DIR}/include
 	)
 
-	add_library(slang-glslang SHARED IMPORTED GLOBAL)
-	set_target_properties(slang-glslang PROPERTIES
+	set_target_properties(slang::slang-compiler PROPERTIES
+			IMPORTED_LOCATION "${slang_SOURCE_DIR}/lib/libslang.so"
+	)
+
+	set_target_properties(slang::slang-glslang PROPERTIES
 			IMPORTED_LOCATION "${slang_SOURCE_DIR}/lib/libslang-glslang.so"
-			IMPORTED_NO_SONAME TRUE
-			INTERFACE_INCLUDE_DIRECTORIES ${slang_SOURCE_DIR}/include
 	)
 endif()
-add_library(slang::slang INTERFACE IMPORTED)
-target_link_libraries(slang::slang INTERFACE slang slang-glslang)
+target_link_libraries(slang INTERFACE slang::slang-compiler)
 
 #================================#
 # Vulkan Launchpad Compiler      #
@@ -168,13 +167,13 @@ add_library(${PROJECT_NAME} STATIC ${VKL_HEADER_FILES} ${VKL_SOURCE_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC Vulkan::Vulkan glm::glm SDL3::SDL3
-	PRIVATE slang::slang
+	PRIVATE slang
 )
 target_include_directories(${PROJECT_NAME} 
 	INTERFACE "${VKL_SOURCE_DIR}"
 	PUBLIC "${VKL_EXTERNAL_DIR}/include"
 )
-add_dependencies(${PROJECT_NAME} slang::slang)
+add_dependencies(${PROJECT_NAME} slang)
 
 #==================================#
 # Unset not needed cache variables #
