@@ -1301,9 +1301,6 @@ void vklStartRecordingCommands()
     vk::Image currentImage = mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].colorAttachmentImageDetails.imageHandle;
     vklTransitionImageLayoutForRendering(cb, currentImage);
 
-    vk::Image currentDepthImage = mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].depthAttachmentImageDetails.imageHandle;
-    vklTransitionDepthImageLayoutForRendering(cb, currentDepthImage);
-
     vk::RenderingAttachmentInfo colorRenderingAttachmentInfo = vk::RenderingAttachmentInfo{
         mSwapchainImageViews[mCurrentSwapChainImageIndex][0],
         vk::ImageLayout::eColorAttachmentOptimal,
@@ -1315,16 +1312,22 @@ void vklStartRecordingCommands()
         mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].colorAttachmentImageDetails.clearValue
     };
 
-    vk::RenderingAttachmentInfo depthRenderingAttachmentInfo = vk::RenderingAttachmentInfo{
-        mSwapchainImageViews[mCurrentSwapChainImageIndex][1],
-        vk::ImageLayout::eDepthAttachmentOptimal,
-        vk::ResolveModeFlagBits::eNone,
-        {},
-        vk::ImageLayout::eUndefined,
-        vk::AttachmentLoadOp::eClear,
-        vk::AttachmentStoreOp::eStore,
-        mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].depthAttachmentImageDetails.clearValue
-    };
+    vk::Image currentDepthImage = mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].depthAttachmentImageDetails.imageHandle;
+    vk::RenderingAttachmentInfo depthRenderingAttachmentInfo;
+    if (currentDepthImage) {
+        vklTransitionDepthImageLayoutForRendering(cb, currentDepthImage);
+
+        depthRenderingAttachmentInfo = vk::RenderingAttachmentInfo{
+            mSwapchainImageViews[mCurrentSwapChainImageIndex][1],
+            vk::ImageLayout::eDepthAttachmentOptimal,
+            vk::ResolveModeFlagBits::eNone,
+            {},
+            vk::ImageLayout::eUndefined,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eStore,
+            mSwapchainConfig.swapchainImages[mCurrentSwapChainImageIndex].depthAttachmentImageDetails.clearValue
+        };
+    }
 
     cb.beginRendering(vk::RenderingInfo{
         {},
@@ -1332,7 +1335,7 @@ void vklStartRecordingCommands()
         1,
         0,
         colorRenderingAttachmentInfo,
-        &depthRenderingAttachmentInfo,
+        currentDepthImage ? &depthRenderingAttachmentInfo : nullptr,
         {}
     });
 }
