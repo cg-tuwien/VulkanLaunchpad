@@ -455,7 +455,7 @@ vk::Pipeline createGraphicsPipelineInternal(const VklGraphicsPipelineConfig& con
 		.setPDepthStencilState(&depthStencilState)
 		.setPColorBlendState(&colorBlendState)
 		.setLayout(pipelineLayout.get())
-		.setPNext(pipelineRenderingCreateInfo);
+		.setPNext(static_cast<const void*>(&pipelineRenderingCreateInfo));
 	// FINALLY:
 	auto graphicsPipeline = mDevice.createGraphicsPipeline(nullptr, pipelineCreateInfo).value;
 	
@@ -899,7 +899,7 @@ bool vklInitFramework(vk::Instance vk_instance, vk::SurfaceKHR vk_surface, vk::P
 		vk::DebugUtilsMessengerCreateFlagsEXT{},
 		vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
 		vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation,
-		DebugUtilsMessengerCallback, nullptr
+	    reinterpret_cast<PFN_vkDebugUtilsMessengerCallbackEXT>(DebugUtilsMessengerCallback), nullptr
 	}, nullptr, mDynamicDispatch);
 
 	// See if we can get some information about the surface:
