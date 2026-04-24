@@ -1569,30 +1569,48 @@ std::tuple<VklImageInfo, gli::texture2d> loadDdsImageWithGli(const char* file, u
 	switch (gliFormat) {
 		// See "Khronos Data Format Specification": https://www.khronos.org/registry/DataFormat/specs/1.3/dataformat.1.3.html#S3TC
 		// And Vulkan specification: https://www.khronos.org/registry/vulkan/specs/1.2-khr-extensions/html/chap42.html#appendix-compressedtex-bc
-	case gli::format::FORMAT_RGB_DXT1_UNORM_BLOCK8:
-	    vkFormat = vk::Format::eBc1RgbSrgbBlock;
-		break;
-	case gli::format::FORMAT_RGB_DXT1_SRGB_BLOCK8:
-	    vkFormat = vk::Format::eBc1RgbSrgbBlock;
-		break;
-	case gli::format::FORMAT_RGBA_DXT1_UNORM_BLOCK8:
-	    vkFormat = vk::Format::eBc1RgbaSrgbBlock;
-		break;
-	case gli::format::FORMAT_RGBA_DXT1_SRGB_BLOCK8:
-	    vkFormat = vk::Format::eBc1RgbaSrgbBlock;
-		break;
-	case gli::format::FORMAT_RGBA_DXT3_UNORM_BLOCK16:
-	    vkFormat = vk::Format::eBc2SrgbBlock;
-		break;
-	case gli::format::FORMAT_RGBA_DXT3_SRGB_BLOCK16:
-	    vkFormat = vk::Format::eBc2SrgbBlock;
-		break;
-	case gli::format::FORMAT_RGBA_DXT5_UNORM_BLOCK16:
-	    vkFormat = vk::Format::eBc3SrgbBlock;
-		break;
-	case gli::format::FORMAT_RGBA_DXT5_SRGB_BLOCK16:
-	    vkFormat = vk::Format::eBc3SrgbBlock;
-		break;
+	    case gli::format::FORMAT_RGB_DXT1_UNORM_BLOCK8:
+	        vkFormat = vk::Format::eBc1RgbUnormBlock;
+	        break;
+	    case gli::format::FORMAT_RGB_DXT1_SRGB_BLOCK8:
+	        vkFormat = vk::Format::eBc1RgbSrgbBlock;
+	        break;
+	    case gli::format::FORMAT_RGBA_DXT1_UNORM_BLOCK8:
+	        vkFormat = vk::Format::eBc1RgbaUnormBlock;
+	        break;
+	    case gli::format::FORMAT_RGBA_DXT1_SRGB_BLOCK8:
+	        vkFormat = vk::Format::eBc1RgbaSrgbBlock;
+	        break;
+	    case gli::format::FORMAT_RGBA_DXT3_UNORM_BLOCK16:
+	        vkFormat = vk::Format::eBc2UnormBlock;
+	        break;
+	    case gli::format::FORMAT_RGBA_DXT3_SRGB_BLOCK16:
+	        vkFormat = vk::Format::eBc2SrgbBlock;
+	        break;
+	    case gli::format::FORMAT_RGBA_DXT5_UNORM_BLOCK16:
+	        vkFormat = vk::Format::eBc3UnormBlock;
+	        break;
+	    case gli::format::FORMAT_RGBA_DXT5_SRGB_BLOCK16:
+	        vkFormat = vk::Format::eBc3SrgbBlock;
+	        break;
+	    case gli::format::FORMAT_R_ATI1N_UNORM_BLOCK8:
+	        vkFormat = vk::Format::eBc4UnormBlock;
+	        break;
+	    case gli::format::FORMAT_R_ATI1N_SNORM_BLOCK8:
+	        vkFormat = vk::Format::eBc4SnormBlock;
+	        break;
+	    case gli::format::FORMAT_RG_ATI2N_UNORM_BLOCK16:
+	        vkFormat = vk::Format::eBc5UnormBlock;
+	        break;
+	    case gli::format::FORMAT_RG_ATI2N_SNORM_BLOCK16:
+	        vkFormat = vk::Format::eBc5SnormBlock;
+	        break;
+	    case gli::format::FORMAT_RGBA_BP_UNORM_BLOCK16:
+	        vkFormat = vk::Format::eBc7UnormBlock;
+	        break;
+	    case gli::format::FORMAT_RGBA_BP_SRGB_BLOCK16:
+	        vkFormat = vk::Format::eBc7SrgbBlock;
+	        break;
 	default:
 		VKL_EXIT_WITH_ERROR(std::string("Unable to load DDS image file [") + file + "] due to an unsupported format.");
 	}
