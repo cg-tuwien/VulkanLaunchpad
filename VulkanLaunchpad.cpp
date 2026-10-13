@@ -126,6 +126,9 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugUtilsMessengerCallback(
 
 std::string mSpaceForToString;
 
+Slang::ComPtr<slang::IGlobalSession> mSlangGlobalSession;
+std::unordered_map<std::string, std::vector<uint32_t>> mSpirvCache;
+
 // Creates a shader module from the given Spir-V code, returns the created shader module and its create info.
 std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(const uint32_t* spirv, size_t byteSize, const vk::ShaderStageFlagBits shaderStage, const char* entryPoint = "main")
 {
@@ -147,11 +150,29 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderF
 {
     std::string_view shaderType = shaderStage == vk::ShaderStageFlagBits::eFragment ? "fragment" : "vertex";
 
-    Slang::ComPtr<slang::IGlobalSession> slangGlobalSession;
-    auto globalSlangSessionResult = slang::createGlobalSession(slangGlobalSession.writeRef());
-    if (SLANG_FAILED(globalSlangSessionResult)) {
-        VKL_EXIT_WITH_ERROR("Failed to create Slang global session.");
+    std::string cacheKey = shaderName + '\n' + shaderCodeAndEntryPoint.second + '\n' + std::string(shaderType) + '\n';
+    for (const auto& searchPath : searchPaths) {
+        cacheKey += searchPath + '\n';
     }
+    cacheKey += shaderCodeAndEntryPoint.first;
+
+    auto cached = mSpirvCache.find(cacheKey);
+    if (cached != mSpirvCache.end()) {
+        return loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(
+            cached->second.data(),
+            cached->second.size() * sizeof(uint32_t),
+            shaderStage,
+            shaderCodeAndEntryPoint.second
+        );
+    }
+
+    if (!mSlangGlobalSession) {
+        auto globalSlangSessionResult = slang::createGlobalSession(mSlangGlobalSession.writeRef());
+        if (SLANG_FAILED(globalSlangSessionResult)) {
+            VKL_EXIT_WITH_ERROR("Failed to create Slang global session.");
+        }
+    }
+    slang::IGlobalSession* slangGlobalSession = mSlangGlobalSession.get();
 
     slang::SessionDesc sessionDesc = {};
     slang::TargetDesc targetDesc = {};
@@ -279,10 +300,12 @@ std::tuple<vk::ShaderModule, vk::PipelineShaderStageCreateInfo> loadSlangShaderF
         }
     }
 
+    const uint32_t* spirvBegin = static_cast<const uint32_t*>(spirvCode->getBufferPointer());
+    const auto& spirv = mSpirvCache[cacheKey] = std::vector<uint32_t>(spirvBegin, spirvBegin + spirvCode->getBufferSize() / sizeof(uint32_t));
 
     return loadShaderFromSpirvAndCreateShaderModuleAndStageInfo(
-        static_cast<const uint32_t*>(spirvCode->getBufferPointer()),
-        spirvCode->getBufferSize(),
+        spirv.data(),
+        spirv.size() * sizeof(uint32_t),
         shaderStage,
         shaderCodeAndEntryPoint.second
     );
@@ -1080,6 +1103,9 @@ void vklDestroyFramework()
 	mSingleUseCommandBuffers.clear();
 
 	mPipelineLayouts.clear();
+
+	mSpirvCache.clear();
+	mSlangGlobalSession = nullptr;
 
 	mCommandPool.reset();
 	mDevice.destroyPipeline(mBasicPipeline);
@@ -1906,6 +1932,7 @@ VklGeometryData vklLoadModelGeometry(const std::string& path_to_obj)
 void vklHotReloadPipelines()
 {
 	VKL_LOG("About to hot-reload " << mUserKnownPipelines.size() << " known graphics pipelines...");
+	mSpirvCache.clear();
 	for(auto it = mUserKnownPipelines.begin(); it != mUserKnownPipelines.end(); it++) {
 		auto originalHandle = it->first;
 		std::get<0>(it->second).vertexShaderPathAndEntrypoint.first         = std::get<1>(it->second).first.c_str();
